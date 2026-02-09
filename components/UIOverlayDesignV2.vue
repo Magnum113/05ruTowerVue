@@ -1,5 +1,6 @@
 <template>
-  <template v-if="gameState === GameState.START">
+  <div>
+    <template v-if="gameState === GameState.START">
     <div
       v-if="onboardingStep === 1"
       data-overlay="start-step1"
@@ -266,120 +267,120 @@
         </div>
       </div>
     </div>
-  </template>
+    </template>
 
-  <div
-    v-else-if="gameState === GameState.LEADERBOARD"
-    class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
-  >
-    <div class="my-auto w-full max-w-md rounded-3xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
-      <div class="mb-5 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(255,212,102,0.3)]">
-            <svg class="h-[22px] w-[22px]" fill="none" viewBox="0 0 22 22">
+    <div
+      v-else-if="gameState === GameState.LEADERBOARD"
+      class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+    >
+      <div class="my-auto w-full max-w-md rounded-3xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(255,212,102,0.3)]">
+              <svg class="h-[22px] w-[22px]" fill="none" viewBox="0 0 22 22">
+                <path
+                  :d="svgPaths.p2f60c500"
+                  stroke="#FFD466"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.83333"
+                />
+                <path
+                  d="M4.58333 19.25H17.4167"
+                  stroke="#FFD466"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.83333"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-[10px] leading-[15px] tracking-[1px] uppercase text-[#15252b]">Топ игроков</p>
+              <h2 class="text-[24px] leading-8 font-medium text-[#15252b]">Рейтинг игроков</h2>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#15252b]/60"
+            @click="emitCloseLeaderboard"
+          >
+            <svg class="h-[14px] w-[14px]" fill="none" viewBox="0 0 14 14">
               <path
-                :d="svgPaths.p2f60c500"
-                stroke="#FFD466"
+                :d="svgPaths.p2c0cbc0"
+                opacity="0.5"
+                stroke="#15252B"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                stroke-width="1.83333"
+                stroke-width="1.16667"
               />
               <path
-                d="M4.58333 19.25H17.4167"
-                stroke="#FFD466"
+                d="M11.0833 7H2.91667"
+                opacity="0.5"
+                stroke="#15252B"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                stroke-width="1.83333"
+                stroke-width="1.16667"
               />
             </svg>
-          </div>
-          <div>
-            <p class="text-[10px] leading-[15px] tracking-[1px] uppercase text-[#15252b]">Топ игроков</p>
-            <h2 class="text-[24px] leading-8 font-medium text-[#15252b]">Рейтинг игроков</h2>
-          </div>
+            Назад
+          </button>
         </div>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#15252b]/60"
-          @click="emitCloseLeaderboard"
-        >
-          <svg class="h-[14px] w-[14px]" fill="none" viewBox="0 0 14 14">
-            <path
-              :d="svgPaths.p2c0cbc0"
-              opacity="0.5"
-              stroke="#15252B"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.16667"
-            />
-            <path
-              d="M11.0833 7H2.91667"
-              opacity="0.5"
-              stroke="#15252B"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.16667"
-            />
-          </svg>
-          Назад
-        </button>
-      </div>
 
-      <div
-        v-if="leaderboardStatus === 'error'"
-        class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
-      >
-        Рейтинг игроков пока недоступен
-      </div>
-      <div
-        v-else-if="sortedLeaderboardEntries.length === 0"
-        class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
-      >
-        Игроков в списке пока нет, но вы можете стать первым :)
-      </div>
-      <div v-else class="space-y-3">
         <div
-          v-for="(entry, index) in sortedLeaderboardEntries"
-          :key="`${entry.nickname}-${entry.score}-${entry.id || index}`"
-          :class="[
-            entry.nickname === nickname ? 'bg-[#FFD466]' : 'bg-[#F6E4B7]',
-            'flex items-center justify-between rounded-2xl px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]'
-          ]"
+          v-if="leaderboardStatus === 'error'"
+          class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
         >
-          <div class="flex min-w-0 items-center gap-3">
-            <div class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f2f5f6] text-[12px] leading-4 font-medium text-[#15252b]">
-              {{ index + 1 }}
-            </div>
-            <div class="flex min-w-0 items-center gap-2">
-              <span class="truncate text-[16px] leading-6 font-medium text-[#15252b]">{{ entry.nickname }}</span>
-              <span
-                v-if="entry.nickname === nickname"
-                class="whitespace-nowrap text-[10px] leading-[15px] tracking-[1px] uppercase text-[rgba(21,37,43,0.5)]"
-              >
-                это вы
-              </span>
-            </div>
-          </div>
-          <span class="ml-3 shrink-0 text-[14px] leading-5 font-medium text-[#15252b]">{{ entry.score }}</span>
+          Рейтинг игроков пока недоступен
         </div>
-      </div>
-
-      <div class="mt-3 rounded-2xl bg-[#b4d3ff] px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex min-w-0 items-center gap-1 text-[14px] leading-5 text-[#15252b]">
-            <span class="font-medium">Ваш ник:</span>
-            <span class="max-w-[42vw] truncate font-bold sm:max-w-[220px]">{{ nickname || '—' }}</span>
+        <div
+          v-else-if="sortedLeaderboardEntries.length === 0"
+          class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
+        >
+          Игроков в списке пока нет, но вы можете стать первым :)
+        </div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="(entry, index) in sortedLeaderboardEntries"
+            :key="`${entry.nickname}-${entry.score}-${entry.id || index}`"
+            :class="[
+              entry.nickname === nickname ? 'bg-[#FFD466]' : 'bg-[#F6E4B7]',
+              'flex items-center justify-between rounded-2xl px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]'
+            ]"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f2f5f6] text-[12px] leading-4 font-medium text-[#15252b]">
+                {{ index + 1 }}
+              </div>
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="truncate text-[16px] leading-6 font-medium text-[#15252b]">{{ entry.nickname }}</span>
+                <span
+                  v-if="entry.nickname === nickname"
+                  class="whitespace-nowrap text-[10px] leading-[15px] tracking-[1px] uppercase text-[rgba(21,37,43,0.5)]"
+                >
+                  это вы
+                </span>
+              </div>
+            </div>
+            <span class="ml-3 shrink-0 text-[14px] leading-5 font-medium text-[#15252b]">{{ entry.score }}</span>
           </div>
-          <div class="flex items-center gap-1 text-[14px] leading-5 text-[#15252b]">
-            <span class="font-normal">Рекорд:</span>
-            <span class="font-medium">{{ score.best }}</span>
+        </div>
+
+        <div class="mt-3 rounded-2xl bg-[#b4d3ff] px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-1 text-[14px] leading-5 text-[#15252b]">
+              <span class="font-medium">Ваш ник:</span>
+              <span class="max-w-[42vw] truncate font-bold sm:max-w-[220px]">{{ nickname || '—' }}</span>
+            </div>
+            <div class="flex items-center gap-1 text-[14px] leading-5 text-[#15252b]">
+              <span class="font-normal">Рекорд:</span>
+              <span class="font-medium">{{ score.best }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <template v-else-if="gameState === GameState.GAME_OVER">
+    <template v-else-if="gameState === GameState.GAME_OVER">
     <div
       v-if="score.current > 0"
       class="absolute inset-0 z-40 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
@@ -685,9 +686,9 @@
         </div>
       </div>
     </div>
-  </template>
+    </template>
 
-  <template v-else-if="gameState === GameState.PLAYING">
+    <template v-else-if="gameState === GameState.PLAYING">
     <div
       data-overlay="hud"
       class="absolute top-0 left-0 z-20 flex w-full items-start justify-between p-4 pointer-events-none"
@@ -807,28 +808,29 @@
         </div>
       </div>
     </div>
-  </template>
+    </template>
 
-  <div
-    v-else
-    data-overlay="hud"
-    class="absolute top-0 left-0 z-20 flex w-full items-start justify-between p-4 pointer-events-none"
-  >
-    <div class="flex flex-col">
-      <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
-        Этаж
-      </span>
-      <span class="text-white text-[36px] leading-[40px] font-['PP_Right_Grotesk:Medium',sans-serif]">
-        {{ score.current }}
-      </span>
-    </div>
-    <div class="flex flex-col items-end">
-      <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
-        Рекорд
-      </span>
-      <span class="text-[#ffd466] text-[24px] leading-[32px] font-['PP_Right_Grotesk:Bold',sans-serif]">
-        {{ score.best }}
-      </span>
+    <div
+      v-else
+      data-overlay="hud"
+      class="absolute top-0 left-0 z-20 flex w-full items-start justify-between p-4 pointer-events-none"
+    >
+      <div class="flex flex-col">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Этаж
+        </span>
+        <span class="text-white text-[36px] leading-[40px] font-['PP_Right_Grotesk:Medium',sans-serif]">
+          {{ score.current }}
+        </span>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Рекорд
+        </span>
+        <span class="text-[#ffd466] text-[24px] leading-[32px] font-['PP_Right_Grotesk:Bold',sans-serif]">
+          {{ score.best }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
