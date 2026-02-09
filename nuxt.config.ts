@@ -42,7 +42,6 @@ const config: NuxtConfig = {
     postcss: {
       postcssOptions: {
         plugins: {
-          tailwindcss: {},
           autoprefixer: {},
         },
       },
