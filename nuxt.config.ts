@@ -14,11 +14,7 @@ const config: NuxtConfig = {
       },
     ],
   },
-  css: [
-    '~/assets/styles/utilities.pcss',
-    '~/assets/styles/designv2-fonts.pcss',
-    '~/assets/styles/designv2-overrides.pcss',
-  ],
+  css: [],
   components: false,
   buildModules: [
     '@nuxt/typescript-build',
