@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { createClient } from '@supabase/supabase-js';
 
 enum GameState {
@@ -1050,6 +1050,8 @@ const showParticipationRules = ref(false);
 
 const copyTimer = ref<number | null>(null);
 const cooldownTimer = ref<number | null>(null);
+const segmentFillRefs = ref<Array<HTMLElement | null>>([]);
+const progressTrackRef = ref<HTMLElement | null>(null);
 
 const rules = [
   '«Отпускайте» ящик, когда он окажется над башней, одним нажатием на экран.',
@@ -1132,6 +1134,51 @@ const segmentProgress = (index: number) => {
 
   return (score.value.current - segmentStart) / segmentSize;
 };
+
+const updateSegmentFillScales = () => {
+  const fallbackFillElements =
+    progressTrackRef.value?.querySelectorAll<HTMLElement>('.game-page__progress-segment-fill') || [];
+  const fillElements = (segmentFillRefs.value.filter(Boolean) as HTMLElement[]).length
+    ? (segmentFillRefs.value.filter(Boolean) as HTMLElement[])
+    : Array.from(fallbackFillElements);
+
+  fillElements.forEach((fillElement, index) => {
+    if (!fillElement) {
+      return;
+    }
+
+    const segmentScale = Math.min(1, Math.max(0, segmentProgress(index)));
+    fillElement.style.setProperty('--fill-scale', segmentScale.toFixed(4));
+  });
+};
+
+watch(
+  () => score.value.current,
+  () => {
+    if (!process.client) {
+      return;
+    }
+
+    void nextTick(() => {
+      updateSegmentFillScales();
+    });
+  },
+  { immediate: true }
+);
+
+watch(
+  () => [gameState.value, nextReward.value?.score ?? -1],
+  () => {
+    if (!process.client) {
+      return;
+    }
+
+    void nextTick(() => {
+      updateSegmentFillScales();
+    });
+  },
+  { immediate: true }
+);
 
 const copyCode = async () => {
   if (!activePromoCode.value || typeof navigator === 'undefined') {
@@ -1299,43 +1346,6 @@ const closeParticipationRules = () => {
   showParticipationRules.value = false;
 };
 
-const primaryButtonStyle = {
-  background:
-    'radial-gradient(408.24% 368.51% at 67.25% 87.2%, #FF0000 0%, rgba(255, 92, 0, 0) 100%), #FF5C00',
-  boxShadow: '0px 4px 20px rgba(255, 44, 0, 0.4)',
-  border: '1px solid rgba(255,255,255,0.1)',
-};
-
-const secondaryButtonStyle = {
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: '#B4D3FF',
-  boxShadow: '2px 2px 12px rgba(0,0,0,0.05)',
-};
-
-const startOverlayStyle = {
-  position: 'absolute',
-  inset: 0,
-  zIndex: 50,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-  background: 'rgba(0, 0, 0, 0.7)',
-  backdropFilter: 'blur(4px)',
-  padding: 'max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))',
-  overflowY: 'auto',
-};
-
-const startCardStyle = {
-  width: '100%',
-  maxWidth: '448px',
-  margin: 'auto 0',
-  borderRadius: '16px',
-  background: '#f2f5f6',
-  boxShadow: '0px 25px 50px -12px rgba(0,0,0,0.25)',
-  padding: '20px',
-};
-
 onMounted(() => {
   if (typeof localStorage !== 'undefined') {
     const best = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
@@ -1365,6 +1375,10 @@ onMounted(() => {
       }
     );
   }
+
+  void nextTick(() => {
+    updateSegmentFillScales();
+  });
 });
 
 onBeforeUnmount(() => {
@@ -1388,1766 +1402,752 @@ onBeforeUnmount(() => {
   engineRef.value?.cleanup();
 });
 </script>
-
 <template>
   <div
-    class="designv2 relative w-full h-screen overflow-hidden bg-[#15252B] select-none"
+    class="game-page"
     @pointerdown="handleScreenTap"
   >
     <canvas
       ref="canvasRef"
-      class="block w-full h-full touch-none"
+      class="game-page__canvas"
     />
-  <div>
-    <template v-if="gameState === GameState.START">
-    <div
-      v-if="onboardingStep === 1"
-      data-overlay="start-step1"
-      class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
-      :style="startOverlayStyle"
-    >
-      <div
-        class="my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
-        :style="startCardStyle"
-      >
-        <div class="mb-4 text-center">
-          <p
-            class="text-[14px] leading-5 font-medium text-[#15252b]"
-            :style="{ color: '#15252b', fontSize: '14px', lineHeight: '20px', fontWeight: 500 }"
+
+    <div class="game-page__layers">
+      <template v-if="gameState === GameState.START">
+        <div
+          v-if="onboardingStep === 1"
+          class="game-page__overlay game-page__overlay--screen game-page__overlay--start"
+        >
+          <div class="game-page__panel game-page__panel--start">
+            <div class="game-page__intro-head">
+              <p class="game-page__intro-kicker">
+                Рамадан — время заботы и добрых дел
+              </p>
+              <h1 class="game-page__intro-title">
+                Башня доброты
+              </h1>
+            </div>
+
+            <div class="game-page__intro-text">
+              <p>Эта игра — ваш небольшой, но значимый вклад.</p>
+              <p>Постройте ровную и высокую башню из коробок и зарабатывайте баллы.</p>
+              <p>В конце месяца Рамадан все набранные баллы будут направлены на благотворительные цели.</p>
+              <p>
+                Будьте терпеливы, и всё обязательно
+                <em>сложится</em>.
+              </p>
+            </div>
+
+            <div class="game-page__actions game-page__actions--stack">
+              <button
+                type="button"
+                class="game-page__button game-page__button--primary"
+                @click="goToOnboardingStep2"
+              >
+                <span class="game-page__button-content game-page__button-content--lg">
+                  <span class="game-page__button-icon game-page__button-icon--lg">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                      <path
+                        :d="svgPaths.p1d055380"
+                        fill="white"
+                        stroke="white"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.66667"
+                      />
+                    </svg>
+                  </span>
+                  Построить башню!
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="game-page__button game-page__button--secondary"
+                @click="emitOpenLeaderboard"
+              >
+                <span class="game-page__button-content game-page__button-content--md game-page__button-content--dark">
+                  <span class="game-page__button-icon game-page__button-icon--md">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 18 18">
+                      <path
+                        :d="svgPaths.p34d63080"
+                        stroke="#15252B"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                      />
+                      <path
+                        d="M3.75 15.75H14.25"
+                        stroke="#15252B"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                      />
+                    </svg>
+                  </span>
+                  Посмотреть рейтинг игроков
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="game-page__button game-page__button--ghost"
+                @click="openParticipationRules"
+              >
+                Правила участия
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="showParticipationRules"
+            class="game-page__overlay game-page__overlay--modal"
           >
-            Рамадан — время заботы и добрых дел
-          </p>
-          <h1
-            data-name="h1.relative"
-            class="mt-2 text-[42px] leading-[40px] font-medium text-[#ff2c00]"
-            :style="{
-              letterSpacing: '-0.75px',
-              color: '#ff2c00',
-              fontSize: 'clamp(40px, 12vw, 56px)',
-              lineHeight: 0.95,
-              fontWeight: 500,
-            }"
-          >
-            Башня доброты
-          </h1>
+            <div class="game-page__panel game-page__panel--rules">
+              <div class="game-page__rules-header">
+                <h3 class="game-page__rules-title">Правила участия</h3>
+                <button
+                  type="button"
+                  class="game-page__rules-close"
+                  @click="closeParticipationRules"
+                >
+                  Закрыть
+                </button>
+              </div>
+
+              <div class="game-page__rules-body">
+                <p class="game-page__rules-subtitle">
+                  <strong>Правила участия в промо-игре «Башня доброты»</strong>
+                </p>
+                <div class="game-page__rules-scroll">
+                  <ol class="game-page__rules-list">
+                    <li
+                      v-for="rule in participationRules"
+                      :key="rule"
+                    >
+                      {{ rule }}
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div
-          class="mb-5 space-y-2 text-center text-[14px] leading-[20px] text-[#15252b]"
-          :style="{ color: '#15252b', fontSize: '14px', lineHeight: '20px' }"
+          v-else
+          class="game-page__overlay game-page__overlay--screen game-page__overlay--start"
         >
-          <p>Эта игра — ваш небольшой, но значимый вклад.</p>
-          <p>Постройте ровную и высокую башню из коробок и зарабатывайте баллы.</p>
-          <p>В конце месяца Рамадан все набранные баллы будут направлены на благотворительные цели.</p>
-          <p>
-            Будьте терпеливы, и всё обязательно
-            <em>сложится</em>.
-          </p>
-        </div>
+          <div class="game-page__panel game-page__panel--start">
+            <div class="game-page__intro-head">
+              <p class="game-page__step-kicker">
+                Шаг 2 из 2
+              </p>
+              <h2 class="game-page__step-title">
+                Правила и награды
+              </h2>
+            </div>
 
-        <div class="flex flex-col gap-3">
-          <button
-            type="button"
-            data-name="button.w-full"
-            class="w-full rounded-[12px] px-6 py-4 text-white"
-            :style="[
-              primaryButtonStyle,
-              { color: '#ffffff', borderRadius: '12px', padding: '16px 24px' }
-            ]"
-            @click="goToOnboardingStep2"
-          >
-            <span
-              class="flex items-center justify-center gap-2 text-[18px] leading-7 font-medium"
-              :style="{ color: '#ffffff', fontSize: '18px', lineHeight: '28px', fontWeight: 500 }"
-            >
-              <span data-name="Frame" class="inline-flex h-5 w-5 shrink-0 items-center justify-center">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+            <div class="game-page__info-card game-page__info-card--rules">
+              <p class="game-page__info-title">Какие же правила?</p>
+              <div class="game-page__rules-grid">
+                <div
+                  v-for="(rule, index) in rules"
+                  :key="rule"
+                  class="game-page__rule-item"
+                >
+                  <span class="game-page__rule-index">{{ index + 1 }}</span>
+                  <span class="game-page__rule-text">{{ rule }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="game-page__info-card game-page__info-card--rewards">
+              <p class="game-page__info-title">Награды за уровни</p>
+              <div class="game-page__reward-grid">
+                <div
+                  v-for="reward in PROMO_REWARDS"
+                  :key="reward.score"
+                  class="game-page__reward-row"
+                >
+                  <span class="game-page__reward-score">{{ reward.score }} очков</span>
+                  <span class="game-page__reward-discount">Скидка {{ reward.discount }} ₽</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="game-page__actions game-page__actions--stack game-page__actions--compact">
+              <button
+                type="button"
+                class="game-page__button game-page__button--primary"
+                @click="emitStart"
+              >
+                <span class="game-page__button-content game-page__button-content--lg">
+                  <span class="game-page__button-icon game-page__button-icon--lg">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                      <path
+                        :d="svgPaths.p1d055380"
+                        fill="white"
+                        stroke="white"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.66667"
+                      />
+                    </svg>
+                  </span>
+                  Начать игру
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="game-page__button game-page__button--secondary"
+                @click="goToOnboardingStep1"
+              >
+                <span class="game-page__button-content game-page__button-content--md game-page__button-content--dark">
+                  Назад
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div
+        v-else-if="gameState === GameState.LEADERBOARD"
+        class="game-page__overlay game-page__overlay--screen game-page__overlay--leaderboard"
+      >
+        <div class="game-page__panel game-page__panel--leaderboard">
+          <div class="game-page__leaderboard-head">
+            <div class="game-page__leaderboard-title-wrap">
+              <div class="game-page__leaderboard-icon">
+                <svg class="game-page__leaderboard-icon-svg" fill="none" viewBox="0 0 22 22">
                   <path
-                    :d="svgPaths.p1d055380"
-                    fill="white"
-                    stroke="white"
+                    :d="svgPaths.p2f60c500"
+                    stroke="#FFD466"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    stroke-width="1.66667"
+                    stroke-width="1.83333"
+                  />
+                  <path
+                    d="M4.58333 19.25H17.4167"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.83333"
                   />
                 </svg>
-              </span>
-              Построить башню!
-            </span>
-          </button>
+              </div>
+              <div>
+                <p class="game-page__leaderboard-kicker">Топ игроков</p>
+                <h2 class="game-page__leaderboard-title">Рейтинг игроков</h2>
+              </div>
+            </div>
 
-          <button
-            type="button"
-            data-name="button.mt-4"
-            class="w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
-            :style="[
-              secondaryButtonStyle,
-              { borderRadius: '12px', padding: '13px 16px' }
-            ]"
-            @click="emitOpenLeaderboard"
-          >
-            <span
-              class="flex items-center justify-center gap-2 text-[14px] leading-5 font-medium text-[#15252b]"
-              :style="{ color: '#15252b', fontSize: '14px', lineHeight: '20px', fontWeight: 500 }"
+            <button
+              type="button"
+              class="game-page__leaderboard-back"
+              @click="emitCloseLeaderboard"
             >
-              <span data-name="Frame" class="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <svg width="18" height="18" fill="none" viewBox="0 0 18 18">
+              <svg class="game-page__leaderboard-back-icon" fill="none" viewBox="0 0 14 14">
+                <path
+                  :d="svgPaths.p2c0cbc0"
+                  opacity="0.5"
+                  stroke="#15252B"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.16667"
+                />
+                <path
+                  d="M11.0833 7H2.91667"
+                  opacity="0.5"
+                  stroke="#15252B"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.16667"
+                />
+              </svg>
+              Назад
+            </button>
+          </div>
+
+          <div
+            v-if="leaderboardStatus === 'error'"
+            class="game-page__leaderboard-state"
+          >
+            Рейтинг игроков пока недоступен
+          </div>
+
+          <div
+            v-else-if="sortedLeaderboardEntries.length === 0"
+            class="game-page__leaderboard-state"
+          >
+            Игроков в списке пока нет, но вы можете стать первым :)
+          </div>
+
+          <div v-else class="game-page__leaderboard-list">
+            <div
+              v-for="(entry, index) in sortedLeaderboardEntries"
+              :key="`${entry.nickname}-${entry.score}-${entry.id || index}`"
+              :class="[
+                'game-page__leaderboard-entry',
+                { 'game-page__leaderboard-entry--current': entry.nickname === nickname }
+              ]"
+            >
+              <div class="game-page__leaderboard-entry-main">
+                <div class="game-page__leaderboard-rank">{{ index + 1 }}</div>
+                <div class="game-page__leaderboard-user">
+                  <span class="game-page__leaderboard-name">{{ entry.nickname }}</span>
+                  <span
+                    v-if="entry.nickname === nickname"
+                    class="game-page__leaderboard-you"
+                  >
+                    это вы
+                  </span>
+                </div>
+              </div>
+
+              <span class="game-page__leaderboard-score">{{ entry.score }}</span>
+            </div>
+          </div>
+
+          <div class="game-page__leaderboard-footer">
+            <div class="game-page__leaderboard-footer-row">
+              <div class="game-page__leaderboard-footer-line">
+                <span class="game-page__leaderboard-footer-label">Ваш ник:</span>
+                <span class="game-page__leaderboard-footer-value game-page__leaderboard-footer-value--nickname">{{ nickname || '—' }}</span>
+              </div>
+
+              <div class="game-page__leaderboard-footer-line game-page__leaderboard-footer-line--record">
+                <span class="game-page__leaderboard-footer-label game-page__leaderboard-footer-label--normal">Рекорд:</span>
+                <span class="game-page__leaderboard-footer-value">{{ score.best }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template v-else-if="gameState === GameState.GAME_OVER">
+        <div
+          v-if="score.current > 0"
+          class="game-page__overlay game-page__overlay--game-over"
+        >
+          <div class="game-page__panel game-page__panel--game-over-rich">
+            <div class="game-page__game-over-head">
+              <div class="game-page__game-over-title-wrap">
+                <div class="game-page__game-over-icon">
+                  <svg class="game-page__game-over-icon-svg" fill="none" viewBox="0 0 26 26">
+                    <path
+                      :d="svgPaths.p10c19f00"
+                      fill="#FF2C00"
+                      stroke="#FF2C00"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2.16667"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <p class="game-page__game-over-kicker">Благотворительность</p>
+                  <h2 class="game-page__game-over-title">Каждая игра — шаг к добру</h2>
+                </div>
+              </div>
+
+              <div
+                v-if="score.current >= score.best"
+                class="game-page__record-badge"
+              >
+                <svg class="game-page__record-icon" fill="none" viewBox="0 0 11.47 14.0015">
+                  <path
+                    :d="svgPaths.p17d743e8"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                  <path
+                    :d="svgPaths.p2a89eb80"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                  <path
+                    :d="svgPaths.p54eb100"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                  <path
+                    d="M1.91167 11.7799H9.55753"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                  <path
+                    :d="svgPaths.p57a9b00"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                  <path
+                    :d="svgPaths.p17482af0"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="0.955833"
+                  />
+                </svg>
+
+                <span class="game-page__record-badge-text">Новый рекорд</span>
+              </div>
+            </div>
+
+            <div class="game-page__stats-card">
+              <div class="game-page__stats-row">
+                <span class="game-page__stats-label">Очки</span>
+                <span class="game-page__stats-value">{{ score.current }}</span>
+              </div>
+
+              <div class="game-page__stats-row">
+                <span class="game-page__stats-label">Пожертвование</span>
+                <span class="game-page__stats-value game-page__stats-value--donation">{{ donation }} ₽</span>
+              </div>
+
+              <p class="game-page__stats-note">В конце Рамадана эта сумма будет направлена на благотворительность</p>
+            </div>
+
+            <div class="game-page__hint-card">
+              <div class="game-page__hint-content">
+                <svg class="game-page__hint-icon" fill="none" viewBox="0 0 17.7 17.9968">
+                  <path
+                    :d="svgPaths.p3f949880"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.475"
+                  />
+                  <path
+                    d="M14.75 1.62342V4.57394"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.475"
+                  />
+                  <path
+                    d="M16.2255 3.09842H13.275"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.475"
+                  />
+                  <path
+                    :d="svgPaths.p2491c700"
+                    stroke="#FFD466"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.475"
+                  />
+                </svg>
+
+                <div>
+                  <p class="game-page__hint-title">Каждый балл — вклад в копилку добра.</p>
+                  <p class="game-page__hint-text">Можно сыграть ещё раз и увеличить сумму пожертвования</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="earnedReward"
+              class="game-page__reward-card"
+            >
+              <div class="game-page__reward-card-head">
+                <svg class="game-page__reward-card-icon" fill="none" viewBox="0 0 18 18">
                   <path
                     :d="svgPaths.p34d63080"
-                    stroke="#15252B"
+                    stroke="#FFD466"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="1.5"
                   />
                   <path
                     d="M3.75 15.75H14.25"
-                    stroke="#15252B"
+                    stroke="#FFD466"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="1.5"
                   />
                 </svg>
-              </span>
-              Посмотреть рейтинг игроков
-            </span>
-          </button>
 
-          <button
-            type="button"
-            data-name="button.mt-3"
-            class="w-full bg-transparent text-center text-xs leading-4 text-[#15252B]"
-            :style="{ color: '#15252B', fontSize: '12px', lineHeight: '16px' }"
-            @click="openParticipationRules"
-          >
-            Правила участия
-          </button>
-        </div>
-      </div>
+                <div>
+                  <p class="game-page__reward-card-title">Ваша награда:</p>
+                  <p class="game-page__reward-card-text">
+                    <span>Скидка на {{ earnedReward.discount }} ₽ </span>
+                    <span class="game-page__reward-card-nowrap">при покупке от 25 000 ₽</span>
+                  </p>
+                  <p class="game-page__reward-card-note">(не действует на технику Apple)</p>
+                </div>
+              </div>
 
-      <div
-        v-if="showParticipationRules"
-        class="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      >
-        <div class="w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
-          <div class="mb-3 flex items-start justify-between gap-4">
-            <h3 class="text-lg font-medium text-[#15252b]">Правила участия</h3>
-            <button
-              type="button"
-              class="text-xs text-[#15252b]/60"
-              @click="closeParticipationRules"
-            >
-              Закрыть
-            </button>
-          </div>
-          <div class="space-y-3 text-sm leading-5 text-[#15252b]/70">
-            <p>
-              <strong>Правила участия в промо-игре «Башня доброты»</strong>
-            </p>
-            <div class="max-h-[55vh] overflow-y-auto pr-1">
-              <ol class="list-decimal list-inside space-y-2 pl-1">
-                <li
-                  v-for="rule in participationRules"
-                  :key="rule"
+              <button
+                type="button"
+                class="game-page__promo-button"
+                @click="copyCode"
+              >
+                <p class="game-page__promo-label">Промокод</p>
+
+                <div class="game-page__promo-row">
+                  <span class="game-page__promo-code">{{ earnedReward.code }}</span>
+                  <svg class="game-page__promo-copy-icon" fill="none" viewBox="0 0 16 16">
+                    <path
+                      :d="svgPaths.p216f800"
+                      opacity="0.2"
+                      stroke="#15252B"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.33333"
+                    />
+                    <path
+                      :d="svgPaths.p13e4b3c0"
+                      opacity="0.2"
+                      stroke="#15252B"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.33333"
+                    />
+                  </svg>
+                </div>
+
+                <div
+                  v-if="copied"
+                  class="game-page__promo-copied"
                 >
-                  {{ rule }}
-                </li>
-              </ol>
+                  СКОПИРОВАНО!
+                </div>
+              </button>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div
-      v-else
-      data-overlay="start-step2"
-      class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
-      :style="startOverlayStyle"
-    >
-      <div
-        class="my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
-        :style="startCardStyle"
-      >
-        <div class="mb-4 text-center">
-          <p
-            class="text-[10px] leading-[15px] tracking-[1px] uppercase text-[#15252b]"
-            :style="{ color: '#15252b', fontSize: '10px', lineHeight: '15px', letterSpacing: '1px' }"
-          >
-            Шаг 2 из 2
-          </p>
-          <h2
-            class="mt-2 text-[24px] leading-8 font-medium text-[#15252b]"
-            :style="{ color: '#15252b', fontSize: '24px', lineHeight: '32px', fontWeight: 500 }"
-          >
-            Правила и награды
-          </h2>
-        </div>
-
-        <div class="mb-3 rounded-xl bg-[#b4d3ff] p-4 shadow-[2px_2px_12px_rgba(0,0,0,0.05)]">
-          <p class="mb-2 text-[14px] leading-4 font-medium text-[#15252b]">Какие же правила?</p>
-          <div class="space-y-2">
             <div
-              v-for="(rule, index) in rules"
-              :key="rule"
-              class="flex items-start gap-2.5"
+              :class="[
+                'game-page__actions game-page__actions--stack',
+                { 'game-page__actions--disabled': gameOverCooldown }
+              ]"
             >
-              <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f2f5f6] text-[12px] leading-5 font-bold text-[#ff2c00]">
-                {{ index + 1 }}
-              </span>
-              <span class="text-[12px] leading-[16px] text-[#15252b]">{{ rule }}</span>
+              <button
+                type="button"
+                class="game-page__button game-page__button--primary game-page__button--game-over-main"
+                :disabled="gameOverCooldown"
+                @click="emitRestart"
+              >
+                <span class="game-page__button-content game-page__button-content--md">
+                  Сыграть ещё раз
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="game-page__button game-page__button--secondary game-page__button--game-over-secondary"
+                :disabled="gameOverCooldown"
+                @click="emitOpenLeaderboard"
+              >
+                <span class="game-page__button-content game-page__button-content--md game-page__button-content--dark">
+                  <svg class="game-page__button-inline-icon" fill="none" viewBox="0 0 16 16">
+                    <path
+                      :d="svgPaths.p10a7d900"
+                      stroke="#15252B"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.33333"
+                    />
+                    <path
+                      d="M3.33333 14H12.6667"
+                      stroke="#15252B"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.33333"
+                    />
+                  </svg>
+                  Посмотреть рейтинг игроков
+                </span>
+              </button>
             </div>
           </div>
         </div>
 
-        <div class="mb-3 rounded-xl bg-white p-4 shadow-[2px_2px_12px_rgba(0,0,0,0.05)]">
-          <p class="mb-2 text-[14px] leading-4 font-medium text-[#15252b]">Награды за уровни</p>
-          <div class="space-y-2">
+        <div
+          v-else
+          class="game-page__overlay game-page__overlay--game-over"
+        >
+          <div class="game-page__simple-wrap">
+            <h2 class="game-page__simple-title">Ваша башня упала</h2>
+            <p class="game-page__simple-subtitle">Но можно попробовать ещё раз</p>
+
+            <div class="game-page__simple-score">
+              <span class="game-page__simple-score-label">Высота:</span>
+              <span class="game-page__simple-score-value">{{ score.current }}</span>
+            </div>
+
             <div
-              v-for="reward in PROMO_REWARDS"
-              :key="reward.score"
-              class="flex items-center justify-between rounded-lg bg-[rgba(180,211,255,0.2)] px-3 py-2"
+              :class="[
+                'game-page__actions game-page__actions--simple',
+                { 'game-page__actions--disabled': gameOverCooldown }
+              ]"
             >
-              <span class="text-[12px] leading-4 text-[#15252b]">{{ reward.score }} очков</span>
-              <span class="text-[14px] leading-5 font-medium text-[#ff2c00]">Скидка {{ reward.discount }} ₽</span>
+              <button
+                type="button"
+                class="game-page__button game-page__button--pill-primary"
+                :disabled="gameOverCooldown"
+                @click="emitRestart"
+              >
+                <span class="game-page__button-content game-page__button-content--lg">
+                  <span class="game-page__button-icon game-page__button-icon--lg">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                      <path
+                        :d="svgPaths.pd0f9a00"
+                        stroke="#F2F5F6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.66667"
+                      />
+                      <path
+                        d="M17.5 2.5V6.66667H13.3333"
+                        stroke="#F2F5F6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.66667"
+                      />
+                    </svg>
+                  </span>
+                  Попробовать снова
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="game-page__button game-page__button--pill-secondary"
+                :disabled="gameOverCooldown"
+                @click="emitOpenLeaderboard"
+              >
+                <span class="game-page__button-content game-page__button-content--md">
+                  <span class="game-page__button-icon game-page__button-icon--sm">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                      <path
+                        :d="svgPaths.p10a7d900"
+                        stroke="#F2F5F6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.33333"
+                      />
+                      <path
+                        d="M3.33333 14H12.6667"
+                        stroke="#F2F5F6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.33333"
+                      />
+                    </svg>
+                  </span>
+                  Посмотреть рейтинг игроков
+                </span>
+              </button>
             </div>
           </div>
         </div>
+      </template>
 
-        <div class="flex flex-col gap-2.5">
-          <button
-            type="button"
-            data-name="button.w-full"
-            class="w-full rounded-[12px] px-6 py-4 text-white"
-            :style="[
-              primaryButtonStyle,
-              { color: '#ffffff', borderRadius: '12px', padding: '16px 24px' }
-            ]"
-            @click="emitStart"
+      <template v-else-if="gameState === GameState.PLAYING">
+        <div class="game-page__hud">
+          <div class="game-page__hud-column">
+            <span class="game-page__hud-label">Этаж</span>
+            <span class="game-page__hud-value">{{ score.current }}</span>
+          </div>
+
+          <div class="game-page__hud-column game-page__hud-column--right">
+            <span class="game-page__hud-label">Рекорд</span>
+            <span class="game-page__hud-value game-page__hud-value--accent">{{ score.best }}</span>
+          </div>
+        </div>
+
+        <div class="game-page__progress">
+          <div
+            v-if="nextReward"
+            class="game-page__progress-card"
           >
-            <span
-              class="flex items-center justify-center gap-2 text-[18px] leading-7 font-medium"
-              :style="{ color: '#ffffff', fontSize: '18px', lineHeight: '28px', fontWeight: 500 }"
-            >
-              <span data-name="Frame" class="inline-flex h-5 w-5 shrink-0 items-center justify-center">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                  <path
-                    :d="svgPaths.p1d055380"
-                    fill="white"
-                    stroke="white"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.66667"
+            <div
+              aria-hidden="true"
+              class="game-page__progress-frame"
+            />
+
+            <div class="game-page__progress-content">
+              <div class="game-page__progress-row">
+                <span class="game-page__progress-kicker">До награды</span>
+                <span class="game-page__progress-kicker">{{ remainingToReward }} этажей</span>
+              </div>
+
+              <div class="game-page__progress-row">
+                <p class="game-page__progress-title">
+                  <span>Скидка </span>
+                  <span class="game-page__progress-title-accent">{{ nextReward.discount }} ₽</span>
+                </p>
+                <span class="game-page__progress-count">{{ score.current }}/{{ nextReward.score }}</span>
+              </div>
+
+              <div
+                ref="progressTrackRef"
+                class="game-page__progress-track-grid"
+              >
+                <div
+                  v-for="(reward, index) in PROMO_REWARDS"
+                  :key="reward.score"
+                  class="game-page__progress-segment"
+                >
+                  <div
+                    ref="segmentFillRefs"
+                    class="game-page__progress-segment-fill"
+                    :class="{ 'game-page__progress-segment-fill--inactive': score.current < reward.score }"
                   />
-                </svg>
-              </span>
-              Начать игру
-            </span>
-          </button>
+                </div>
+              </div>
 
-          <button
-            type="button"
-            data-name="button.mt-4"
-            class="w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] text-[14px] leading-5 font-medium text-[#15252b] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
-            :style="[
-              secondaryButtonStyle,
-              {
-                color: '#15252b',
-                borderRadius: '12px',
-                padding: '13px 16px',
-                fontSize: '14px',
-                lineHeight: '20px',
-                fontWeight: 500,
-              }
-            ]"
-            @click="goToOnboardingStep1"
+              <div class="game-page__progress-row">
+                <span class="game-page__progress-caption">Прогресс</span>
+                <span class="game-page__progress-caption">{{ Math.round(overallProgress * 100) }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="game-page__progress-pill"
           >
-            Назад
-          </button>
+            <p class="game-page__progress-pill-text">Все награды получены. Продолжайте играть!</p>
+          </div>
+        </div>
+      </template>
+
+      <div
+        v-else
+        class="game-page__hud"
+      >
+        <div class="game-page__hud-column">
+          <span class="game-page__hud-label">Этаж</span>
+          <span class="game-page__hud-value">{{ score.current }}</span>
+        </div>
+
+        <div class="game-page__hud-column game-page__hud-column--right">
+          <span class="game-page__hud-label">Рекорд</span>
+          <span class="game-page__hud-value game-page__hud-value--accent">{{ score.best }}</span>
         </div>
       </div>
     </div>
-    </template>
+  </div>
+</template>
 
 <style lang="postcss" scoped>
-*, ::before, ::after {
-  --ui-border-spacing-x: 0;
-  --ui-border-spacing-y: 0;
-  --ui-translate-x: 0;
-  --ui-translate-y: 0;
-  --ui-rotate: 0;
-  --ui-skew-x: 0;
-  --ui-skew-y: 0;
-  --ui-scale-x: 1;
-  --ui-scale-y: 1;
-  --ui-pan-x:  ;
-  --ui-pan-y:  ;
-  --ui-pinch-zoom:  ;
-  --ui-scroll-snap-strictness: proximity;
-  --ui-gradient-from-position:  ;
-  --ui-gradient-via-position:  ;
-  --ui-gradient-to-position:  ;
-  --ui-ordinal:  ;
-  --ui-slashed-zero:  ;
-  --ui-numeric-figure:  ;
-  --ui-numeric-spacing:  ;
-  --ui-numeric-fraction:  ;
-  --ui-ring-inset:  ;
-  --ui-ring-offset-width: 0px;
-  --ui-ring-offset-color: #fff;
-  --ui-ring-color: rgb(59 130 246 / 0.5);
-  --ui-ring-offset-shadow: 0 0 #0000;
-  --ui-ring-shadow: 0 0 #0000;
-  --ui-shadow: 0 0 #0000;
-  --ui-shadow-colored: 0 0 #0000;
-  --ui-blur:  ;
-  --ui-brightness:  ;
-  --ui-contrast:  ;
-  --ui-grayscale:  ;
-  --ui-hue-rotate:  ;
-  --ui-invert:  ;
-  --ui-saturate:  ;
-  --ui-sepia:  ;
-  --ui-drop-shadow:  ;
-  --ui-backdrop-blur:  ;
-  --ui-backdrop-brightness:  ;
-  --ui-backdrop-contrast:  ;
-  --ui-backdrop-grayscale:  ;
-  --ui-backdrop-hue-rotate:  ;
-  --ui-backdrop-invert:  ;
-  --ui-backdrop-opacity:  ;
-  --ui-backdrop-saturate:  ;
-  --ui-backdrop-sepia:  ;
-  --ui-contain-size:  ;
-  --ui-contain-layout:  ;
-  --ui-contain-paint:  ;
-  --ui-contain-style:  ;
-}
-
-::backdrop {
-  --ui-border-spacing-x: 0;
-  --ui-border-spacing-y: 0;
-  --ui-translate-x: 0;
-  --ui-translate-y: 0;
-  --ui-rotate: 0;
-  --ui-skew-x: 0;
-  --ui-skew-y: 0;
-  --ui-scale-x: 1;
-  --ui-scale-y: 1;
-  --ui-pan-x:  ;
-  --ui-pan-y:  ;
-  --ui-pinch-zoom:  ;
-  --ui-scroll-snap-strictness: proximity;
-  --ui-gradient-from-position:  ;
-  --ui-gradient-via-position:  ;
-  --ui-gradient-to-position:  ;
-  --ui-ordinal:  ;
-  --ui-slashed-zero:  ;
-  --ui-numeric-figure:  ;
-  --ui-numeric-spacing:  ;
-  --ui-numeric-fraction:  ;
-  --ui-ring-inset:  ;
-  --ui-ring-offset-width: 0px;
-  --ui-ring-offset-color: #fff;
-  --ui-ring-color: rgb(59 130 246 / 0.5);
-  --ui-ring-offset-shadow: 0 0 #0000;
-  --ui-ring-shadow: 0 0 #0000;
-  --ui-shadow: 0 0 #0000;
-  --ui-shadow-colored: 0 0 #0000;
-  --ui-blur:  ;
-  --ui-brightness:  ;
-  --ui-contrast:  ;
-  --ui-grayscale:  ;
-  --ui-hue-rotate:  ;
-  --ui-invert:  ;
-  --ui-saturate:  ;
-  --ui-sepia:  ;
-  --ui-drop-shadow:  ;
-  --ui-backdrop-blur:  ;
-  --ui-backdrop-brightness:  ;
-  --ui-backdrop-contrast:  ;
-  --ui-backdrop-grayscale:  ;
-  --ui-backdrop-hue-rotate:  ;
-  --ui-backdrop-invert:  ;
-  --ui-backdrop-opacity:  ;
-  --ui-backdrop-saturate:  ;
-  --ui-backdrop-sepia:  ;
-  --ui-contain-size:  ;
-  --ui-contain-layout:  ;
-  --ui-contain-paint:  ;
-  --ui-contain-style:  ;
-}
-
-/*
-! */
-
-/*
-1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
-2. Allow adding a border to an element by just adding a border-width. 
-*/
-
-*,
-::before,
-::after {
-  box-sizing: border-box;
-  /* 1 */
-  border-width: 0;
-  /* 2 */
-  border-style: solid;
-  /* 2 */
-  border-color: #e5e7eb;
-  /* 2 */
-}
-
-::before,
-::after {
-  --ui-content: '';
-}
-
-/*
-1. Use a consistent sensible line-height in all browsers.
-2. Prevent adjustments of font size after orientation changes in iOS.
-3. Use a more readable tab size.
-4. Use the user's configured `sans` font-family by default.
-5. Use the user's configured `sans` font-feature-settings by default.
-6. Use the user's configured `sans` font-variation-settings by default.
-7. Disable tap highlights on iOS
-*/
-
-html,
-:host {
-  line-height: 1.5;
-  /* 1 */
-  -webkit-text-size-adjust: 100%;
-  /* 2 */
-  -moz-tab-size: 4;
-  /* 3 */
-  -o-tab-size: 4;
-     tab-size: 4;
-  /* 3 */
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  /* 4 */
-  font-feature-settings: normal;
-  /* 5 */
-  font-variation-settings: normal;
-  /* 6 */
-  -webkit-tap-highlight-color: transparent;
-  /* 7 */
-}
-
-/*
-1. Remove the margin in all browsers.
-2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
-*/
-
-body {
-  margin: 0;
-  /* 1 */
-  line-height: inherit;
-  /* 2 */
-}
-
-/*
-1. Add the correct height in Firefox.
-2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
-3. Ensure horizontal rules are visible by default.
-*/
-
-hr {
-  height: 0;
-  /* 1 */
-  color: inherit;
-  /* 2 */
-  border-top-width: 1px;
-  /* 3 */
-}
-
-/*
-Add the correct text decoration in Chrome, Edge, and Safari.
-*/
-
-abbr:where([title]) {
-  -webkit-text-decoration: underline dotted;
-          text-decoration: underline dotted;
-}
-
-/*
-Remove the default font size and weight for headings.
-*/
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-/*
-Reset links to optimize for opt-in styling instead of opt-out.
-*/
-
-a {
-  color: inherit;
-  text-decoration: inherit;
-}
-
-/*
-Add the correct font weight in Edge and Safari.
-*/
-
-b,
-strong {
-  font-weight: bolder;
-}
-
-/*
-1. Use the user's configured `mono` font-family by default.
-2. Use the user's configured `mono` font-feature-settings by default.
-3. Use the user's configured `mono` font-variation-settings by default.
-4. Correct the odd `em` font sizing in all browsers.
-*/
-
-code,
-kbd,
-samp,
-pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  /* 1 */
-  font-feature-settings: normal;
-  /* 2 */
-  font-variation-settings: normal;
-  /* 3 */
-  font-size: 1em;
-  /* 4 */
-}
-
-/*
-Add the correct font size in all browsers.
-*/
-
-small {
-  font-size: 80%;
-}
-
-/*
-Prevent `sub` and `sup` elements from affecting the line height in all browsers.
-*/
-
-sub,
-sup {
-  font-size: 75%;
-  line-height: 0;
-  position: relative;
-  vertical-align: baseline;
-}
-
-sub {
-  bottom: -0.25em;
-}
-
-sup {
-  top: -0.5em;
-}
-
-/*
-1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
-2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
-3. Remove gaps between table borders by default.
-*/
-
-table {
-  text-indent: 0;
-  /* 1 */
-  border-color: inherit;
-  /* 2 */
-  border-collapse: collapse;
-  /* 3 */
-}
-
-/*
-1. Change the font styles in all browsers.
-2. Remove the margin in Firefox and Safari.
-3. Remove default padding in all browsers.
-*/
-
-button,
-input,
-optgroup,
-select,
-textarea {
-  font-family: inherit;
-  /* 1 */
-  font-feature-settings: inherit;
-  /* 1 */
-  font-variation-settings: inherit;
-  /* 1 */
-  font-size: 100%;
-  /* 1 */
-  font-weight: inherit;
-  /* 1 */
-  line-height: inherit;
-  /* 1 */
-  letter-spacing: inherit;
-  /* 1 */
-  color: inherit;
-  /* 1 */
-  margin: 0;
-  /* 2 */
-  padding: 0;
-  /* 3 */
-}
-
-/*
-Remove the inheritance of text transform in Edge and Firefox.
-*/
-
-button,
-select {
-  text-transform: none;
-}
-
-/*
-1. Correct the inability to style clickable types in iOS and Safari.
-2. Remove default button styles.
-*/
-
-button,
-input:where([type='button']),
-input:where([type='reset']),
-input:where([type='submit']) {
-  -webkit-appearance: button;
-  /* 1 */
-  background-color: transparent;
-  /* 2 */
-  background-image: none;
-  /* 2 */
-}
-
-/*
-Use the modern Firefox focus style for all focusable elements.
-*/
-
-:-moz-focusring {
-  outline: auto;
-}
-
-/*
-Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
-*/
-
-:-moz-ui-invalid {
-  box-shadow: none;
-}
-
-/*
-Add the correct vertical alignment in Chrome and Firefox.
-*/
-
-progress {
-  vertical-align: baseline;
-}
-
-/*
-Correct the cursor style of increment and decrement buttons in Safari.
-*/
-
-::-webkit-inner-spin-button,
-::-webkit-outer-spin-button {
-  height: auto;
-}
-
-/*
-1. Correct the odd appearance in Chrome and Safari.
-2. Correct the outline style in Safari.
-*/
-
-[type='search'] {
-  -webkit-appearance: textfield;
-  /* 1 */
-  outline-offset: -2px;
-  /* 2 */
-}
-
-/*
-Remove the inner padding in Chrome and Safari on macOS.
-*/
-
-::-webkit-search-decoration {
-  -webkit-appearance: none;
-}
-
-/*
-1. Correct the inability to style clickable types in iOS and Safari.
-2. Change font properties to `inherit` in Safari.
-*/
-
-::-webkit-file-upload-button {
-  -webkit-appearance: button;
-  /* 1 */
-  font: inherit;
-  /* 2 */
-}
-
-/*
-Add the correct display in Chrome and Safari.
-*/
-
-summary {
-  display: list-item;
-}
-
-/*
-Removes the default spacing and border for appropriate elements.
-*/
-
-blockquote,
-dl,
-dd,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-hr,
-figure,
-p,
-pre {
-  margin: 0;
-}
-
-fieldset {
-  margin: 0;
-  padding: 0;
-}
-
-legend {
-  padding: 0;
-}
-
-ol,
-ul,
-menu {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/*
-Reset default styling for dialogs.
-*/
-
-dialog {
-  padding: 0;
-}
-
-/*
-Prevent resizing textareas horizontally by default.
-*/
-
-textarea {
-  resize: vertical;
-}
-
-/*
-1. Reset the default placeholder opacity in Firefox. 
-2. Set the default placeholder color to the user's configured gray 400 color.
-*/
-
-input::-moz-placeholder, textarea::-moz-placeholder {
-  opacity: 1;
-  /* 1 */
-  color: #9ca3af;
-  /* 2 */
-}
-
-input::placeholder,
-textarea::placeholder {
-  opacity: 1;
-  /* 1 */
-  color: #9ca3af;
-  /* 2 */
-}
-
-/*
-Set the default cursor for buttons.
-*/
-
-button,
-[role="button"] {
-  cursor: pointer;
-}
-
-/*
-Make sure disabled buttons don't get the pointer cursor.
-*/
-
-:disabled {
-  cursor: default;
-}
-
-/*
-1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
-2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
-   This can trigger a poorly considered lint error in some tools but is included by design.
-*/
-
-img,
-svg,
-video,
-canvas,
-audio,
-iframe,
-embed,
-object {
-  display: block;
-  /* 1 */
-  vertical-align: middle;
-  /* 2 */
-}
-
-/*
-Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
-*/
-
-img,
-video {
-  max-width: 100%;
-  height: auto;
-}
-
-/* Make elements with the HTML hidden attribute stay hidden by default */
-
-[hidden]:where(:not([hidden="until-found"])) {
-  display: none;
-}
-
-.pointer-events-none {
-  pointer-events: none;
-}
-
-.static {
-  position: static;
-}
-
-.absolute {
-  position: absolute;
-}
-
-.relative {
-  position: relative;
-}
-
-.inset-0 {
-  inset: 0px;
-}
-
-.left-0 {
-  left: 0px;
-}
-
-.left-1\/2 {
-  left: 50%;
-}
-
-.top-0 {
-  top: 0px;
-}
-
-.top-20 {
-  top: 5rem;
-}
-
-.z-20 {
-  z-index: 20;
-}
-
-.z-40 {
-  z-index: 40;
-}
-
-.z-50 {
-  z-index: 50;
-}
-
-.z-\[60\] {
-  z-index: 60;
-}
-
-.my-auto {
-  margin-top: auto;
-  margin-bottom: auto;
-}
-
-.mb-2 {
-  margin-bottom: 0.5rem;
-}
-
-.mb-3 {
-  margin-bottom: 0.75rem;
-}
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
-.mb-5 {
-  margin-bottom: 1.25rem;
-}
-
-.ml-3 {
-  margin-left: 0.75rem;
-}
-
-.mt-1 {
-  margin-top: 0.25rem;
-}
-
-.mt-2 {
-  margin-top: 0.5rem;
-}
-
-.mt-3 {
-  margin-top: 0.75rem;
-}
-
-.mt-4 {
-  margin-top: 1rem;
-}
-
-.mt-6 {
-  margin-top: 1.5rem;
-}
-
-.mt-\[2px\] {
-  margin-top: 2px;
-}
-
-.block {
-  display: block;
-}
-
-.flex {
-  display: flex;
-}
-
-.inline-flex {
-  display: inline-flex;
-}
-
-.grid {
-  display: grid;
-}
-
-.hidden {
-  display: none;
-}
-
-.h-11 {
-  height: 2.75rem;
-}
-
-.h-12 {
-  height: 3rem;
-}
-
-.h-4 {
-  height: 1rem;
-}
-
-.h-5 {
-  height: 1.25rem;
-}
-
-.h-8 {
-  height: 2rem;
-}
-
-.h-\[14px\] {
-  height: 14px;
-}
-
-.h-\[18px\] {
-  height: 18px;
-}
-
-.h-\[22px\] {
-  height: 22px;
-}
-
-.h-\[26px\] {
-  height: 26px;
-}
-
-.h-\[8px\] {
-  height: 8px;
-}
-
-.h-full {
-  height: 100%;
-}
-
-.h-screen {
-  height: 100vh;
-}
-
-.max-h-\[55vh\] {
-  max-height: 55vh;
-}
-
-.w-11 {
-  width: 2.75rem;
-}
-
-.w-12 {
-  width: 3rem;
-}
-
-.w-4 {
-  width: 1rem;
-}
-
-.w-5 {
-  width: 1.25rem;
-}
-
-.w-8 {
-  width: 2rem;
-}
-
-.w-\[12px\] {
-  width: 12px;
-}
-
-.w-\[14px\] {
-  width: 14px;
-}
-
-.w-\[18px\] {
-  width: 18px;
-}
-
-.w-\[22px\] {
-  width: 22px;
-}
-
-.w-\[26px\] {
-  width: 26px;
-}
-
-.w-\[min\(92vw\2c 560px\)\] {
-  width: min(92vw, 560px);
-}
-
-.w-full {
-  width: 100%;
-}
-
-.min-w-0 {
-  min-width: 0px;
-}
-
-.max-w-\[42vw\] {
-  max-width: 42vw;
-}
-
-.max-w-md {
-  max-width: 28rem;
-}
-
-.shrink-0 {
-  flex-shrink: 0;
-}
-
-.-translate-x-1\/2 {
-  --ui-translate-x: -50%;
-  transform: translate(var(--ui-translate-x), var(--ui-translate-y)) rotate(var(--ui-rotate)) skewX(var(--ui-skew-x)) skewY(var(--ui-skew-y)) scaleX(var(--ui-scale-x)) scaleY(var(--ui-scale-y));
-}
-
-.touch-none {
-  touch-action: none;
-}
-
-.select-none {
-  -webkit-user-select: none;
-     -moz-user-select: none;
-          user-select: none;
-}
-
-.list-inside {
-  list-style-position: inside;
-}
-
-.list-decimal {
-  list-style-type: decimal;
-}
-
-.grid-cols-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.flex-wrap {
-  flex-wrap: wrap;
-}
-
-.content-stretch {
-  align-content: stretch;
-}
-
-.items-start {
-  align-items: flex-start;
-}
-
-.items-end {
-  align-items: flex-end;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-start {
-  justify-content: flex-start;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.gap-1 {
-  gap: 0.25rem;
-}
-
-.gap-2 {
-  gap: 0.5rem;
-}
-
-.gap-2\.5 {
-  gap: 0.625rem;
-}
-
-.gap-3 {
-  gap: 0.75rem;
-}
-
-.gap-4 {
-  gap: 1rem;
-}
-
-.gap-\[8px\] {
-  gap: 8px;
-}
-
-.space-y-2 > :not([hidden]) ~ :not([hidden]) {
-  --ui-space-y-reverse: 0;
-  margin-top: calc(0.5rem * calc(1 - var(--ui-space-y-reverse)));
-  margin-bottom: calc(0.5rem * var(--ui-space-y-reverse));
-}
-
-.space-y-3 > :not([hidden]) ~ :not([hidden]) {
-  --ui-space-y-reverse: 0;
-  margin-top: calc(0.75rem * calc(1 - var(--ui-space-y-reverse)));
-  margin-bottom: calc(0.75rem * var(--ui-space-y-reverse));
-}
-
-.overflow-hidden {
-  overflow: hidden;
-}
-
-.overflow-clip {
-  overflow: clip;
-}
-
-.overflow-y-auto {
-  overflow-y: auto;
-}
-
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.whitespace-nowrap {
-  white-space: nowrap;
-}
-
-.rounded-2xl {
-  border-radius: 1rem;
-}
-
-.rounded-3xl {
-  border-radius: 1.5rem;
-}
-
-.rounded-\[12px\] {
-  border-radius: 12px;
-}
-
-.rounded-\[16px\] {
-  border-radius: 16px;
-}
-
-.rounded-\[9999px\] {
-  border-radius: 9999px;
-}
-
-.rounded-full {
-  border-radius: 9999px;
-}
-
-.rounded-lg {
-  border-radius: 0.5rem;
-}
-
-.rounded-xl {
-  border-radius: 0.75rem;
-}
-
-.border {
-  border-width: 1px;
-}
-
-.border-solid {
-  border-style: solid;
-}
-
-.border-dashed {
-  border-style: dashed;
-}
-
-.border-\[\#ffd466\] {
-  --ui-border-opacity: 1;
-  border-color: rgb(255 212 102 / var(--ui-border-opacity, 1));
-}
-
-.border-\[rgba\(255\2c 255\2c 255\2c 0\.1\)\] {
-  border-color: rgba(255,255,255,0.1);
-}
-
-.border-\[rgba\(255\2c 255\2c 255\2c 0\.2\)\] {
-  border-color: rgba(255,255,255,0.2);
-}
-
-.border-white\/10 {
-  border-color: rgb(255 255 255 / 0.1);
-}
-
-.border-white\/15 {
-  border-color: rgb(255 255 255 / 0.15);
-}
-
-.bg-\[\#15252B\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(21 37 43 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[\#15252b\]\/90 {
-  background-color: rgb(21 37 43 / 0.9);
-}
-
-.bg-\[\#F6E4B7\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(246 228 183 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[\#FFD466\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(255 212 102 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[\#b4d3ff\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(180 211 255 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[\#f2f5f6\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(242 245 246 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[\#ffd466\] {
-  --ui-bg-opacity: 1;
-  background-color: rgb(255 212 102 / var(--ui-bg-opacity, 1));
-}
-
-.bg-\[rgba\(180\2c 211\2c 255\2c 0\.2\)\] {
-  background-color: rgba(180,211,255,0.2);
-}
-
-.bg-\[rgba\(255\2c 212\2c 102\2c 0\.2\)\] {
-  background-color: rgba(255,212,102,0.2);
-}
-
-.bg-\[rgba\(255\2c 212\2c 102\2c 0\.3\)\] {
-  background-color: rgba(255,212,102,0.3);
-}
-
-.bg-\[rgba\(255\2c 255\2c 255\2c 0\.1\)\] {
-  background-color: rgba(255,255,255,0.1);
-}
-
-.bg-\[rgba\(255\2c 255\2c 255\2c 0\.5\)\] {
-  background-color: rgba(255,255,255,0.5);
-}
-
-.bg-\[rgba\(255\2c 44\2c 0\2c 0\.2\)\] {
-  background-color: rgba(255,44,0,0.2);
-}
-
-.bg-black\/70 {
-  background-color: rgb(0 0 0 / 0.7);
-}
-
-.bg-transparent {
-  background-color: transparent;
-}
-
-.bg-white {
-  --ui-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--ui-bg-opacity, 1));
-}
-
-.bg-white\/5 {
-  background-color: rgb(255 255 255 / 0.05);
-}
-
-.p-3 {
-  padding: 0.75rem;
-}
-
-.p-4 {
-  padding: 1rem;
-}
-
-.p-5 {
-  padding: 1.25rem;
-}
-
-.px-3 {
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-}
-
-.px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-.px-6 {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-}
-
-.px-8 {
-  padding-left: 2rem;
-  padding-right: 2rem;
-}
-
-.px-\[17px\] {
-  padding-left: 17px;
-  padding-right: 17px;
-}
-
-.py-1 {
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
-
-.py-2 {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-}
-
-.py-3 {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-.py-4 {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
-}
-
-.py-6 {
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
-}
-
-.py-\[13px\] {
-  padding-top: 13px;
-  padding-bottom: 13px;
-}
-
-.py-\[9px\] {
-  padding-top: 9px;
-  padding-bottom: 9px;
-}
-
-.pb-\[13px\] {
-  padding-bottom: 13px;
-}
-
-.pb-\[max\(1rem\2c env\(safe-area-inset-bottom\)\)\] {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
-.pl-1 {
-  padding-left: 0.25rem;
-}
-
-.pr-1 {
-  padding-right: 0.25rem;
-}
-
-.pt-\[12px\] {
-  padding-top: 12px;
-}
-
-.pt-\[max\(1rem\2c env\(safe-area-inset-top\)\)\] {
-  padding-top: max(1rem, env(safe-area-inset-top));
-}
-
-.text-center {
-  text-align: center;
-}
-
-.font-\[\'Menlo\:Bold\'\2c sans-serif\] {
-  font-family: 'Menlo:Bold',sans-serif;
-}
-
-.font-\[\'PP_Right_Grotesk\:Bold\'\2c sans-serif\] {
-  font-family: 'PP Right Grotesk:Bold',sans-serif;
-}
-
-.font-\[\'PP_Right_Grotesk\:Medium\'\2c sans-serif\] {
-  font-family: 'PP Right Grotesk:Medium',sans-serif;
-}
-
-.font-\[\'PP_Right_Grotesk\:Regular\'\2c sans-serif\] {
-  font-family: 'PP Right Grotesk:Regular',sans-serif;
-}
-
-.text-\[10px\] {
-  font-size: 10px;
-}
-
-.text-\[11px\] {
-  font-size: 11px;
-}
-
-.text-\[12px\] {
-  font-size: 12px;
-}
-
-.text-\[14px\] {
-  font-size: 14px;
-}
-
-.text-\[16px\] {
-  font-size: 16px;
-}
-
-.text-\[18px\] {
-  font-size: 18px;
-}
-
-.text-\[20px\] {
-  font-size: 20px;
-}
-
-.text-\[24px\] {
-  font-size: 24px;
-}
-
-.text-\[30px\] {
-  font-size: 30px;
-}
-
-.text-\[36px\] {
-  font-size: 36px;
-}
-
-.text-\[42px\] {
-  font-size: 42px;
-}
-
-.text-\[48px\] {
-  font-size: 48px;
-}
-
-.text-lg {
-  font-size: 1.125rem;
-  line-height: 1.75rem;
-}
-
-.text-sm {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-}
-
-.text-xs {
-  font-size: 0.75rem;
-  line-height: 1rem;
-}
-
-.font-bold {
-  font-weight: 700;
-}
-
-.font-medium {
-  font-weight: 500;
-}
-
-.font-normal {
-  font-weight: 400;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.uppercase {
-  text-transform: uppercase;
-}
-
-.not-italic {
-  font-style: normal;
-}
-
-.leading-10 {
-  line-height: 2.5rem;
-}
-
-.leading-4 {
-  line-height: 1rem;
-}
-
-.leading-5 {
-  line-height: 1.25rem;
-}
-
-.leading-6 {
-  line-height: 1.5rem;
-}
-
-.leading-7 {
-  line-height: 1.75rem;
-}
-
-.leading-8 {
-  line-height: 2rem;
-}
-
-.leading-9 {
-  line-height: 2.25rem;
-}
-
-.leading-\[0\] {
-  line-height: 0;
-}
-
-.leading-\[14px\] {
-  line-height: 14px;
-}
-
-.leading-\[15px\] {
-  line-height: 15px;
-}
-
-.leading-\[16\.5px\] {
-  line-height: 16.5px;
-}
-
-.leading-\[16px\] {
-  line-height: 16px;
-}
-
-.leading-\[20px\] {
-  line-height: 20px;
-}
-
-.leading-\[26px\] {
-  line-height: 26px;
-}
-
-.leading-\[32px\] {
-  line-height: 32px;
-}
-
-.leading-\[40px\] {
-  line-height: 40px;
-}
-
-.leading-\[48px\] {
-  line-height: 48px;
-}
-
-.tracking-\[1\.5px\] {
-  letter-spacing: 1.5px;
-}
-
-.tracking-\[1px\] {
-  letter-spacing: 1px;
-}
-
-.tracking-\[2px\] {
-  letter-spacing: 2px;
-}
-
-.text-\[\#15252B\] {
-  --ui-text-opacity: 1;
-  color: rgb(21 37 43 / var(--ui-text-opacity, 1));
-}
-
-.text-\[\#15252b\] {
-  --ui-text-opacity: 1;
-  color: rgb(21 37 43 / var(--ui-text-opacity, 1));
-}
-
-.text-\[\#15252b\]\/60 {
-  color: rgb(21 37 43 / 0.6);
-}
-
-.text-\[\#15252b\]\/70 {
-  color: rgb(21 37 43 / 0.7);
-}
-
-.text-\[\#f2f5f6\] {
-  --ui-text-opacity: 1;
-  color: rgb(242 245 246 / var(--ui-text-opacity, 1));
-}
-
-.text-\[\#ff2c00\] {
-  --ui-text-opacity: 1;
-  color: rgb(255 44 0 / var(--ui-text-opacity, 1));
-}
-
-.text-\[\#ffd466\] {
-  --ui-text-opacity: 1;
-  color: rgb(255 212 102 / var(--ui-text-opacity, 1));
-}
-
-.text-\[rgba\(21\2c 37\2c 43\2c 0\.5\)\] {
-  color: rgba(21,37,43,0.5);
-}
-
-.text-\[rgba\(255\2c 255\2c 255\2c 0\.5\)\] {
-  color: rgba(255,255,255,0.5);
-}
-
-.text-\[rgba\(255\2c 255\2c 255\2c 0\.6\)\] {
-  color: rgba(255,255,255,0.6);
-}
-
-.text-\[rgba\(255\2c 255\2c 255\2c 0\.7\)\] {
-  color: rgba(255,255,255,0.7);
-}
-
-.text-white {
-  --ui-text-opacity: 1;
-  color: rgb(255 255 255 / var(--ui-text-opacity, 1));
-}
-
-.text-white\/60 {
-  color: rgb(255 255 255 / 0.6);
-}
-
-.opacity-70 {
-  opacity: 0.7;
-}
-
-.shadow-\[0px_10px_30px_0px_rgba\(0\2c 0\2c 0\2c 0\.35\)\] {
-  --ui-shadow: 0px 10px 30px 0px rgba(0,0,0,0.35);
-  --ui-shadow-colored: 0px 10px 30px 0px var(--ui-shadow-color);
-  box-shadow: var(--ui-ring-offset-shadow, 0 0 #0000), var(--ui-ring-shadow, 0 0 #0000), var(--ui-shadow);
-}
-
-.shadow-\[0px_25px_50px_-12px_rgba\(0\2c 0\2c 0\2c 0\.25\)\] {
-  --ui-shadow: 0px 25px 50px -12px rgba(0,0,0,0.25);
-  --ui-shadow-colored: 0px 25px 50px -12px var(--ui-shadow-color);
-  box-shadow: var(--ui-ring-offset-shadow, 0 0 #0000), var(--ui-ring-shadow, 0 0 #0000), var(--ui-shadow);
-}
-
-.shadow-\[2px_2px_12px_0px_rgba\(0\2c 0\2c 0\2c 0\.05\)\] {
-  --ui-shadow: 2px 2px 12px 0px rgba(0,0,0,0.05);
-  --ui-shadow-colored: 2px 2px 12px 0px var(--ui-shadow-color);
-  box-shadow: var(--ui-ring-offset-shadow, 0 0 #0000), var(--ui-ring-shadow, 0 0 #0000), var(--ui-shadow);
-}
-
-.shadow-\[2px_2px_12px_rgba\(0\2c 0\2c 0\2c 0\.05\)\] {
-  --ui-shadow: 2px 2px 12px rgba(0,0,0,0.05);
-  --ui-shadow-colored: 2px 2px 12px var(--ui-shadow-color);
-  box-shadow: var(--ui-ring-offset-shadow, 0 0 #0000), var(--ui-ring-shadow, 0 0 #0000), var(--ui-shadow);
-}
-
-.blur {
-  --ui-blur: blur(8px);
-  filter: var(--ui-blur) var(--ui-brightness) var(--ui-contrast) var(--ui-grayscale) var(--ui-hue-rotate) var(--ui-invert) var(--ui-saturate) var(--ui-sepia) var(--ui-drop-shadow);
-}
-
-.backdrop-blur-\[4px\] {
-  --ui-backdrop-blur: blur(4px);
-  backdrop-filter: var(--ui-backdrop-blur) var(--ui-backdrop-brightness) var(--ui-backdrop-contrast) var(--ui-backdrop-grayscale) var(--ui-backdrop-hue-rotate) var(--ui-backdrop-invert) var(--ui-backdrop-opacity) var(--ui-backdrop-saturate) var(--ui-backdrop-sepia);
-}
-
-.backdrop-blur-sm {
-  --ui-backdrop-blur: blur(4px);
-  backdrop-filter: var(--ui-backdrop-blur) var(--ui-backdrop-brightness) var(--ui-backdrop-contrast) var(--ui-backdrop-grayscale) var(--ui-backdrop-hue-rotate) var(--ui-backdrop-invert) var(--ui-backdrop-opacity) var(--ui-backdrop-saturate) var(--ui-backdrop-sepia);
-}
-
-html,
-body,
-#__nuxt,
-#__layout {
-  width: 100%;
-  height: 100%;
-}
-
-body {
-  margin: 0;
-  overflow: hidden;
-  background-color: #15252b;
-  touch-action: none;
-}
-
-.scanlines {
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 0, 0, 0.1) 50%,
-    rgba(0, 0, 0, 0.1)
-  );
-  background-size: 100% 4px;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-
-@media (min-width: 640px) {
-  .sm\:max-w-\[220px\] {
-    max-width: 220px;
-  }
-
-  .sm\:p-6 {
-    padding: 1.5rem;
-  }
-}
 @font-face {
   font-family: 'PP Right Grotesk';
   src: url('/fonts/PPRightGrotesk-Regular.woff2') format('woff2');
@@ -3196,204 +2196,1133 @@ body {
   font-display: swap;
 }
 
-.designv2 {
+.game-page {
+  --color-bg: #15252b;
+  --color-panel: #f2f5f6;
+  --color-accent: #ff2c00;
+  --color-gold: #ffd466;
+  --color-secondary: #b4d3ff;
+  --color-copy: #15252b;
+
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-bg);
+  user-select: none;
   font-family: 'PP Right Grotesk', system-ui, -apple-system, sans-serif;
-}
-.designv2 [data-name="button.w-full"]:not([class*="bg-[#b4d3ff]"]),
-.designv2 [data-name="button.px-8"] {
-  background-color: #FF5C00 !important;
-  background-image: radial-gradient(408.24% 368.51% at 67.25% 87.2%, #FF0000 0%, rgba(255, 92, 0, 0) 100%) !important;
-  background: radial-gradient(408.24% 368.51% at 67.25% 87.2%, #FF0000 0%, rgba(255, 92, 0, 0) 100%), #FF5C00 !important;
-}
 
-.designv2 [data-name="button.w-full"][class*="bg-[#b4d3ff]"] {
-  background: #B4D3FF !important;
-}
+  &__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
 
-.designv2 [data-name="div.h-full"] {
-  background: radial-gradient(
-    ellipse 350px 150px at 67% 87%,
-    rgba(255, 0, 0, 1) 0%,
-    rgba(255, 11, 0, 0.875) 12.5%,
-    rgba(255, 23, 0, 0.75) 25%,
-    rgba(255, 46, 0, 0.5) 50%,
-    rgba(255, 92, 0, 0) 100%
-  ), linear-gradient(90deg, rgb(255, 92, 0) 0%, rgb(255, 92, 0) 100%) !important;
-}
-
-.designv2 [data-name="div.h-full"][class*="bg-[#f2f5f6]"] {
-  background: #F2F5F6 !important;
-}
-
-.designv2 [data-name="button.mt-3"] p {
-  color: #15252B !important;
-}
-
-.designv2 [data-name="button.mt-3"] div {
-  opacity: 1 !important;
-}
-
-.designv2 [data-name="h1.relative"] p {
-  letter-spacing: -0.75px;
-}
-
-@media (max-width: 768px) {
-  .designv2 [data-overlay="start-step1"],
-  .designv2 [data-overlay="start-step2"] {
+  &__layers {
     position: absolute;
     inset: 0;
-    z-index: 50;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     overflow-y: auto;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgb(0 0 0 / 70%);
     backdrop-filter: blur(4px);
+    pointer-events: auto;
+
+    &--screen,
+    &--start,
+    &--leaderboard {
+      z-index: 50;
+    }
+
+    &--game-over {
+      z-index: 40;
+    }
+
+    &--modal {
+      z-index: 60;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
   }
 
-  .designv2 [data-overlay="start-step1"] > .relative,
-  .designv2 [data-overlay="start-step2"] > .relative {
+  &__panel {
     width: 100%;
     max-width: 448px;
     margin: auto 0;
-  }
-
-  .designv2 [data-overlay="start-step1"] [data-name="div.w-full"] {
-    position: relative;
-    width: 100%;
-    height: auto;
-    padding: 16px;
     border-radius: 16px;
-    overflow: hidden;
-    background: #f2f5f6;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    background: var(--color-panel);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 25%);
+    padding: 20px;
+
+    &--leaderboard,
+    &--game-over-rich {
+      border-radius: 24px;
+    }
+
+    &--rules {
+      margin: 0;
+      border-radius: 16px;
+      padding: 20px;
+    }
   }
 
-  .designv2 [data-overlay="start-step1"] [data-name="div.mb-6"],
-  .designv2 [data-overlay="start-step1"] [data-name="div.mb-8"] {
-    position: static;
-    left: auto;
-    right: auto;
-    top: auto;
-    height: auto;
-  }
-
-  .designv2 [data-overlay="start-step1"] [data-name="div.mb-8"] {
-    margin-top: 12px;
-    margin-bottom: 18px;
-    padding-bottom: 0;
-  }
-
-  .designv2 [data-overlay="start-step1"] [data-name="p"] > div {
-    white-space: normal !important;
+  &__intro-head {
+    margin-bottom: 16px;
     text-align: center;
   }
 
-  .designv2 [data-overlay="start-step1"] [data-name="button.w-full"],
-  .designv2 [data-overlay="start-step1"] [data-name="button.mt-4"] {
-    position: relative;
-    left: auto;
-    right: auto;
-    top: auto;
-    width: 100%;
+  &__intro-kicker {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+  }
+
+  &__intro-title {
+    margin: 8px 0 0;
+    color: var(--color-accent);
+    font-size: clamp(40px, 12vw, 56px);
+    line-height: 0.95;
+    font-weight: 500;
+    letter-spacing: -0.75px;
+  }
+
+  &__intro-text {
+    margin-bottom: 20px;
+    color: var(--color-copy);
+    text-align: center;
+    font-size: 14px;
+    line-height: 20px;
+
+    p {
+      margin: 0;
+    }
+
+    p + p {
+      margin-top: 8px;
+    }
+  }
+
+  &__step-kicker {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 10px;
+    line-height: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  &__step-title {
+    margin: 8px 0 0;
+    color: var(--color-copy);
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 500;
+  }
+
+  &__actions {
+    display: flex;
+
+    &--stack {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    &--compact {
+      gap: 10px;
+    }
+
+    &--simple {
+      margin-top: 24px;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    &--disabled {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  }
+
+  &__button {
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 12px;
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+
+    &:active {
+      transform: translateY(1px);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      width: 100%;
+      padding: 16px 24px;
+      color: #fff;
+      background: radial-gradient(408.24% 368.51% at 67.25% 87.2%, #ff0000 0%, rgb(255 92 0 / 0%) 100%), #ff5c00;
+      box-shadow: 0 4px 20px rgb(255 44 0 / 40%);
+    }
+
+    &--secondary {
+      width: 100%;
+      padding: 13px 16px;
+      border: 1px solid rgb(255 255 255 / 10%);
+      background: var(--color-secondary);
+      box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+    }
+
+    &--ghost {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--color-copy);
+      font-size: 12px;
+      line-height: 16px;
+      text-align: center;
+    }
+
+    &--game-over-main {
+      padding: 12px 24px;
+    }
+
+    &--game-over-secondary {
+      padding: 12px 24px;
+    }
+
+    &--pill-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      border-radius: 9999px;
+      padding: 12px 32px;
+      color: #f2f5f6;
+      background: radial-gradient(408.24% 368.51% at 67.25% 87.2%, #ff0000 0%, rgb(255 92 0 / 0%) 100%), #ff5c00;
+      box-shadow: 0 4px 20px rgb(255 44 0 / 40%);
+    }
+
+    &--pill-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      border-radius: 9999px;
+      border: 1px solid rgb(255 255 255 / 15%);
+      background: rgb(255 255 255 / 5%);
+      padding: 9px 24px;
+      color: #f2f5f6;
+    }
+  }
+
+  &__button-content {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+
+    &--lg {
+      font-size: 18px;
+      line-height: 28px;
+    }
+
+    &--md {
+      font-size: 14px;
+      line-height: 20px;
+    }
+
+    &--dark {
+      color: var(--color-copy);
+    }
   }
 
-  .designv2 [data-overlay="start-step1"] [data-name="button.mt-4"] {
-    margin-top: 12px;
+  &__button-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--lg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &--md {
+      width: 18px;
+      height: 18px;
+    }
+
+    &--sm {
+      width: 16px;
+      height: 16px;
+    }
   }
 
-  .designv2 [data-overlay="start-step1"] [data-name="button.mt-3"] {
-    position: static;
-    left: auto;
-    top: auto;
-    transform: none;
-    width: 100%;
-    margin-top: 10px;
+  &__button-inline-icon {
+    width: 16px;
+    height: 16px;
   }
 
-  .designv2 [data-overlay="start-step1"] [data-name="button.w-full"] [data-name="Frame"] {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 auto;
-  }
-
-  .designv2 [data-overlay="start-step1"] [data-name="button.mt-4"] [data-name="Frame"] {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
-  }
-
-  .designv2 [data-overlay="start-step2"] [data-name="div.w-full"] {
-    width: 100%;
-    max-width: 448px;
-    padding: 16px;
-    border-radius: 16px;
-    overflow: hidden;
-    background: #f2f5f6;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  }
-
-  .designv2 [data-overlay="start-step2"] [data-name="div.mb-4"],
-  .designv2 [data-overlay="start-step2"] [data-name="h3.text-xs"],
-  .designv2 [data-overlay="start-step2"] [data-name="div.space-y-2"],
-  .designv2 [data-overlay="start-step2"] [data-name="div.flex"] {
-    width: 100% !important;
-  }
-
-  .designv2 [data-overlay="start-step2"] [data-name="p.text-xs"] > div {
-    white-space: normal !important;
-  }
-
-  .designv2 [data-overlay="start-step2"] [data-name="button.w-full"],
-  .designv2 [data-overlay="start-step2"] [data-name="button.mt-4"] {
-    width: 100%;
-    position: relative;
-    left: auto;
-    right: auto;
-  }
-
-  .designv2 [data-overlay="start-step2"] [data-name="button.w-full"] [data-name="Frame"],
-  .designv2 [data-overlay="start-step2"] [data-name="span.flex-shrink-0"] {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 auto;
-  }
-
-  .designv2 [data-overlay="hud"] {
-    position: absolute;
-    top: calc(env(safe-area-inset-top) + 10px);
-    left: 0;
-    z-index: 20;
-    width: 100%;
+  &__rules-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  &__rules-title {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: 500;
+  }
+
+  &__rules-close {
+    border: 0;
+    background: transparent;
+    color: rgb(21 37 43 / 60%);
+    font-size: 12px;
+    line-height: 16px;
+    cursor: pointer;
+  }
+
+  &__rules-body {
+    color: rgb(21 37 43 / 70%);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__rules-subtitle {
+    margin: 0;
+  }
+
+  &__rules-scroll {
+    max-height: 55vh;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding-right: 4px;
+  }
+
+  &__rules-list {
+    margin: 0;
+    padding-left: 4px;
+    list-style-position: inside;
+    list-style-type: decimal;
+
+    li + li {
+      margin-top: 8px;
+    }
+  }
+
+  &__info-card {
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+
+    &--rules {
+      margin-bottom: 12px;
+      background: var(--color-secondary);
+    }
+
+    &--rewards {
+      margin-bottom: 12px;
+      background: #fff;
+    }
+  }
+
+  &__info-title {
+    margin: 0 0 8px;
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 16px;
+    font-weight: 500;
+  }
+
+  &__rules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__rule-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  &__rule-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: #f2f5f6;
+    color: var(--color-accent);
+    font-size: 12px;
+    line-height: 20px;
+    font-weight: 700;
+  }
+
+  &__rule-text {
+    color: var(--color-copy);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  &__reward-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__reward-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 8px;
+    background: rgb(180 211 255 / 20%);
+    padding: 8px 12px;
+  }
+
+  &__reward-score {
+    color: var(--color-copy);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  &__reward-discount {
+    color: var(--color-accent);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+  }
+
+  &__leaderboard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  &__leaderboard-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  &__leaderboard-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+    background: rgb(255 212 102 / 30%);
+    flex-shrink: 0;
+  }
+
+  &__leaderboard-icon-svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  &__leaderboard-kicker {
+    margin: 0;
+    color: var(--color-copy);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  &__leaderboard-title {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 500;
+  }
+
+  &__leaderboard-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 1px solid rgb(255 255 255 / 10%);
+    background: rgb(255 255 255 / 5%);
+    padding: 8px 12px;
+    color: rgb(21 37 43 / 60%);
+    font-size: 12px;
+    line-height: 16px;
+    cursor: pointer;
+  }
+
+  &__leaderboard-back-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &__leaderboard-state {
+    border-radius: 16px;
+    background: var(--color-gold);
+    padding: 24px 16px;
+    color: var(--color-copy);
+    text-align: center;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__leaderboard-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 16px;
+    background: #f6e4b7;
+    padding: 12px 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+
+    &--current {
+      background: #ffd466;
+    }
+  }
+
+  &__leaderboard-entry-main {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 12px;
+  }
+
+  &__leaderboard-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: #f2f5f6;
+    color: var(--color-copy);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+  }
+
+  &__leaderboard-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__leaderboard-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-copy);
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 500;
+  }
+
+  &__leaderboard-you {
+    flex-shrink: 0;
+    white-space: nowrap;
+    color: rgb(21 37 43 / 50%);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  &__leaderboard-score {
+    margin-left: 12px;
+    flex-shrink: 0;
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+  }
+
+  &__leaderboard-footer {
+    margin-top: 12px;
+    border-radius: 16px;
+    background: var(--color-secondary);
+    padding: 12px 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+  }
+
+  &__leaderboard-footer-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__leaderboard-footer-line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 4px;
+
+    &--record {
+      flex-shrink: 0;
+    }
+  }
+
+  &__leaderboard-footer-label {
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+
+    &--normal {
+      font-weight: 400;
+    }
+  }
+
+  &__leaderboard-footer-value {
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+
+    &--nickname {
+      max-width: min(42vw, 220px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+  }
+
+  &__game-over-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__game-over-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  &__game-over-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: rgb(255 44 0 / 20%);
+    flex-shrink: 0;
+  }
+
+  &__game-over-icon-svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  &__game-over-kicker {
+    margin: 0;
+    color: var(--color-copy);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  &__game-over-title {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 24px;
+    line-height: 26px;
+    font-weight: 500;
+  }
+
+  &__record-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 1px solid var(--color-gold);
+    background: rgb(255 212 102 / 20%);
+    padding: 4px 12px;
+  }
+
+  &__record-icon {
+    width: 12px;
+    height: 14px;
+  }
+
+  &__record-badge-text {
+    color: var(--color-gold);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+  }
+
+  &__stats-card {
+    margin-bottom: 16px;
+    border-radius: 16px;
+    background: var(--color-secondary);
+    padding: 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+  }
+
+  &__stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  &__stats-label {
+    color: var(--color-copy);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 11px;
+    line-height: 16.5px;
+  }
+
+  &__stats-value {
+    color: var(--color-copy);
+    font-size: 30px;
+    line-height: 36px;
+    font-weight: 500;
+
+    &--donation {
+      color: var(--color-accent);
+      font-size: 36px;
+      line-height: 40px;
+    }
+  }
+
+  &__stats-note {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  &__hint-card {
+    margin-bottom: 16px;
+    border-radius: 16px;
+    background: rgb(255 255 255 / 50%);
+    padding: 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+  }
+
+  &__hint-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  &__hint-icon {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  &__hint-title,
+  &__hint-text {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__hint-title {
+    font-weight: 500;
+  }
+
+  &__reward-card {
+    margin-bottom: 16px;
+    border-radius: 16px;
+    background: #fff;
+    padding: 16px;
+    box-shadow: 2px 2px 12px rgb(0 0 0 / 5%);
+  }
+
+  &__reward-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__reward-card-icon {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  &__reward-card-title,
+  &__reward-card-text {
+    margin: 0;
+    color: var(--color-copy);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__reward-card-title {
+    font-weight: 500;
+  }
+
+  &__reward-card-nowrap {
+    white-space: nowrap;
+  }
+
+  &__reward-card-note {
+    margin: 0;
+    color: rgb(21 37 43 / 70%);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  &__promo-button {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px dashed rgb(255 255 255 / 20%);
+    background: var(--color-secondary);
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  &__promo-label {
+    margin: 0;
+    color: var(--color-copy);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 10px;
+    line-height: 20px;
+  }
+
+  &__promo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__promo-code {
+    color: var(--color-copy);
+    font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 20px;
+    line-height: 28px;
+    letter-spacing: 2px;
+    font-weight: 700;
+  }
+
+  &__promo-copy-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  &__promo-copied {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: rgb(21 37 43 / 90%);
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+
+  &__simple-wrap {
+    width: 100%;
+    max-width: 448px;
+    margin: auto 0;
+    text-align: center;
+  }
+
+  &__simple-title {
+    margin: 0;
+    color: var(--color-accent);
+    font-size: 36px;
+    line-height: 40px;
+    font-weight: 500;
+  }
+
+  &__simple-subtitle {
+    margin: 4px 0 0;
+    color: rgb(255 255 255 / 60%);
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  &__simple-score {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  &__simple-score-label {
+    color: rgb(255 255 255 / 60%);
+    font-size: 18px;
+    line-height: 28px;
+  }
+
+  &__simple-score-value {
+    color: var(--color-accent);
+    font-size: 48px;
+    line-height: 48px;
+    font-weight: 500;
+  }
+
+  &__hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
     padding: 16px;
     pointer-events: none;
   }
 
-  .designv2 [data-overlay="progress"] {
-    position: absolute;
-    top: calc(env(safe-area-inset-top) + 90px);
-    z-index: 20;
-    pointer-events: none;
-    background: #15252b;
+  &__hud-column {
+    display: flex;
+    flex-direction: column;
+
+    &--right {
+      align-items: flex-end;
+    }
   }
 
-  .designv2 [data-overlay="progress"] [data-name="div.mt-3"] > div {
+  &__hud-label {
+    color: rgb(255 255 255 / 60%);
+    text-transform: uppercase;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+  }
+
+  &__hud-value {
+    color: #fff;
+    font-size: 36px;
+    line-height: 40px;
+    font-weight: 500;
+
+    &--accent {
+      color: var(--color-gold);
+      font-size: 24px;
+      line-height: 32px;
+      font-weight: 700;
+    }
+  }
+
+  &__progress {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    z-index: 20;
+    width: min(92vw, 560px);
+    pointer-events: none;
+    background: var(--color-bg);
+    transform: translateX(-50%);
+  }
+
+  &__progress-card {
+    position: relative;
+    width: 100%;
+    border-radius: 16px;
+    background: var(--color-bg);
+    backdrop-filter: blur(4px);
+  }
+
+  &__progress-frame {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+    pointer-events: none;
+  }
+
+  &__progress-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 17px 13px;
+  }
+
+  &__progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__progress-kicker {
+    color: rgb(255 255 255 / 60%);
+    text-transform: uppercase;
+    font-size: 11px;
+    line-height: 16.5px;
+    white-space: nowrap;
+  }
+
+  &__progress-title {
+    margin: 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  &__progress-title-accent {
+    color: var(--color-gold);
+  }
+
+  &__progress-count {
+    color: rgb(255 255 255 / 70%);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  &__progress-track-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
+    margin-top: 4px;
   }
 
-  .designv2 [data-overlay="progress"] [data-name="div.mt-3"] [data-name="div.relative"] {
-    width: 100% !important;
+  &__progress-segment {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 10%);
+  }
+
+  &__progress-segment-fill {
+    --fill-scale: 0;
+
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    background: radial-gradient(
+      ellipse 350px 150px at 67% 87%,
+      rgb(255 0 0 / 100%) 0%,
+      rgb(255 11 0 / 87.5%) 12.5%,
+      rgb(255 23 0 / 75%) 25%,
+      rgb(255 46 0 / 50%) 50%,
+      rgb(255 92 0 / 0%) 100%
+    ), linear-gradient(90deg, rgb(255 92 0 / 100%) 0%, rgb(255 92 0 / 100%) 100%);
+    transform: scaleX(var(--fill-scale));
+    transform-origin: left center;
+    transition: transform 0.16s ease-out, background-color 0.16s ease-out;
+
+    &--inactive {
+      background: #f2f5f6;
+    }
+  }
+
+  &__progress-caption {
+    color: rgb(255 255 255 / 50%);
+    font-size: 10px;
+    line-height: 15px;
+    white-space: nowrap;
+  }
+
+  &__progress-pill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border: 1px solid var(--color-gold);
+    border-radius: 9999px;
+    background: var(--color-gold);
+    backdrop-filter: blur(4px);
+    padding: 9px 17px;
+  }
+
+  &__progress-pill-text {
+    margin: 0;
+    color: var(--color-copy);
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  @media (min-width: 640px) {
+    &__overlay {
+      padding-right: 24px;
+      padding-left: 24px;
+    }
+
+    &__panel {
+      padding: 24px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    &__hud {
+      top: calc(env(safe-area-inset-top) + 10px);
+    }
+
+    &__progress {
+      top: calc(env(safe-area-inset-top) + 90px);
+    }
   }
 }
-
 </style>

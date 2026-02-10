@@ -37,6 +37,7 @@ const config: NuxtConfig = {
     postcss: {
       postcssOptions: {
         plugins: {
+          'postcss-nested': {},
           autoprefixer: {},
         },
       },
