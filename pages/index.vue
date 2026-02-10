@@ -1391,23 +1391,23 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="designv2 relative w-full h-screen overflow-hidden bg-[#15252B] select-none"
+    class="game-page designv2 relative w-full h-screen overflow-hidden bg-[#15252B] select-none"
     @pointerdown="handleScreenTap"
   >
     <canvas
       ref="canvasRef"
-      class="block w-full h-full touch-none"
+      class="game-page__canvas block w-full h-full touch-none"
     />
-  <div>
+  <div class="game-page__layers">
     <template v-if="gameState === GameState.START">
     <div
       v-if="onboardingStep === 1"
       data-overlay="start-step1"
-      class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+      class="game-page__overlay game-page__overlay--screen absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
       :style="startOverlayStyle"
     >
       <div
-        class="my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
+        class="game-page__panel my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
         :style="startCardStyle"
       >
         <div class="mb-4 text-center">
@@ -1449,7 +1449,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             data-name="button.w-full"
-            class="w-full rounded-[12px] px-6 py-4 text-white"
+            class="game-page__btn game-page__btn--primary w-full rounded-[12px] px-6 py-4 text-white"
             :style="[
               primaryButtonStyle,
               { color: '#ffffff', borderRadius: '12px', padding: '16px 24px' }
@@ -1479,7 +1479,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             data-name="button.mt-4"
-            class="w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
+            class="game-page__btn game-page__btn--secondary w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
             :style="[
               secondaryButtonStyle,
               { borderRadius: '12px', padding: '13px 16px' }
@@ -1515,7 +1515,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             data-name="button.mt-3"
-            class="w-full bg-transparent text-center text-xs leading-4 text-[#15252B]"
+            class="game-page__btn game-page__btn--ghost w-full bg-transparent text-center text-xs leading-4 text-[#15252B]"
             :style="{ color: '#15252B', fontSize: '12px', lineHeight: '16px' }"
             @click="openParticipationRules"
           >
@@ -1526,9 +1526,9 @@ onBeforeUnmount(() => {
 
       <div
         v-if="showParticipationRules"
-        class="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        class="game-page__overlay game-page__overlay--modal absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       >
-        <div class="w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
+        <div class="game-page__panel game-page__panel--modal w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
           <div class="mb-3 flex items-start justify-between gap-4">
             <h3 class="text-lg font-medium text-[#15252b]">Правила участия</h3>
             <button
@@ -1561,11 +1561,11 @@ onBeforeUnmount(() => {
     <div
       v-else
       data-overlay="start-step2"
-      class="absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+      class="game-page__overlay game-page__overlay--screen absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
       :style="startOverlayStyle"
     >
       <div
-        class="my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
+        class="game-page__panel my-auto w-full max-w-md rounded-2xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]"
         :style="startCardStyle"
       >
         <div class="mb-4 text-center">
@@ -1617,7 +1617,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             data-name="button.w-full"
-            class="w-full rounded-[12px] px-6 py-4 text-white"
+            class="game-page__btn game-page__btn--primary w-full rounded-[12px] px-6 py-4 text-white"
             :style="[
               primaryButtonStyle,
               { color: '#ffffff', borderRadius: '12px', padding: '16px 24px' }
@@ -1647,7 +1647,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             data-name="button.mt-4"
-            class="w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] text-[14px] leading-5 font-medium text-[#15252b] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
+            class="game-page__btn game-page__btn--secondary w-full rounded-[12px] border border-white/10 bg-[#b4d3ff] px-4 py-[13px] text-[14px] leading-5 font-medium text-[#15252b] shadow-[2px_2px_12px_rgba(0,0,0,0.05)]"
             :style="[
               secondaryButtonStyle,
               {
@@ -1667,6 +1667,573 @@ onBeforeUnmount(() => {
       </div>
     </div>
     </template>
+
+    <div
+      v-else-if="gameState === GameState.LEADERBOARD"
+      class="game-page__overlay game-page__overlay--screen absolute inset-0 z-50 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+    >
+      <div class="my-auto w-full max-w-md rounded-3xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(255,212,102,0.3)]">
+              <svg class="h-[22px] w-[22px]" fill="none" viewBox="0 0 22 22">
+                <path
+                  :d="svgPaths.p2f60c500"
+                  stroke="#FFD466"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.83333"
+                />
+                <path
+                  d="M4.58333 19.25H17.4167"
+                  stroke="#FFD466"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.83333"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-[10px] leading-[15px] tracking-[1px] uppercase text-[#15252b]">Топ игроков</p>
+              <h2 class="text-[24px] leading-8 font-medium text-[#15252b]">Рейтинг игроков</h2>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#15252b]/60"
+            @click="emitCloseLeaderboard"
+          >
+            <svg class="h-[14px] w-[14px]" fill="none" viewBox="0 0 14 14">
+              <path
+                :d="svgPaths.p2c0cbc0"
+                opacity="0.5"
+                stroke="#15252B"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.16667"
+              />
+              <path
+                d="M11.0833 7H2.91667"
+                opacity="0.5"
+                stroke="#15252B"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.16667"
+              />
+            </svg>
+            Назад
+          </button>
+        </div>
+
+        <div
+          v-if="leaderboardStatus === 'error'"
+          class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
+        >
+          Рейтинг игроков пока недоступен
+        </div>
+        <div
+          v-else-if="sortedLeaderboardEntries.length === 0"
+          class="rounded-2xl bg-[#ffd466] px-4 py-6 text-center text-[14px] leading-5 text-[#15252b]"
+        >
+          Игроков в списке пока нет, но вы можете стать первым :)
+        </div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="(entry, index) in sortedLeaderboardEntries"
+            :key="`${entry.nickname}-${entry.score}-${entry.id || index}`"
+            :class="[
+              entry.nickname === nickname ? 'bg-[#FFD466]' : 'bg-[#F6E4B7]',
+              'flex items-center justify-between rounded-2xl px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]'
+            ]"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f2f5f6] text-[12px] leading-4 font-medium text-[#15252b]">
+                {{ index + 1 }}
+              </div>
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="truncate text-[16px] leading-6 font-medium text-[#15252b]">{{ entry.nickname }}</span>
+                <span
+                  v-if="entry.nickname === nickname"
+                  class="whitespace-nowrap text-[10px] leading-[15px] tracking-[1px] uppercase text-[rgba(21,37,43,0.5)]"
+                >
+                  это вы
+                </span>
+              </div>
+            </div>
+            <span class="ml-3 shrink-0 text-[14px] leading-5 font-medium text-[#15252b]">{{ entry.score }}</span>
+          </div>
+        </div>
+
+        <div class="mt-3 rounded-2xl bg-[#b4d3ff] px-4 py-3 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-1 text-[14px] leading-5 text-[#15252b]">
+              <span class="font-medium">Ваш ник:</span>
+              <span class="max-w-[42vw] truncate font-bold sm:max-w-[220px]">{{ nickname || '—' }}</span>
+            </div>
+            <div class="flex items-center gap-1 text-[14px] leading-5 text-[#15252b]">
+              <span class="font-normal">Рекорд:</span>
+              <span class="font-medium">{{ score.best }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template v-else-if="gameState === GameState.GAME_OVER">
+    <div
+      v-if="score.current > 0"
+      class="absolute inset-0 z-40 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+    >
+      <div class="my-auto w-full max-w-md rounded-3xl bg-[#f2f5f6] p-5 sm:p-6 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
+        <div class="mb-4 flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(255,44,0,0.2)]">
+              <svg class="h-[26px] w-[26px]" fill="none" viewBox="0 0 26 26">
+                <path
+                  :d="svgPaths.p10c19f00"
+                  fill="#FF2C00"
+                  stroke="#FF2C00"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.16667"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-[10px] leading-[15px] tracking-[1.5px] uppercase text-[#15252b]">Благотворительность</p>
+              <h2 class="text-[24px] leading-[26px] font-medium text-[#15252b]">Каждая игра — шаг к добру</h2>
+            </div>
+          </div>
+          <div
+            v-if="score.current >= score.best"
+            class="inline-flex items-center gap-2 rounded-full border border-[#ffd466] bg-[rgba(255,212,102,0.2)] px-3 py-1"
+          >
+            <svg class="h-[14px] w-[12px]" fill="none" viewBox="0 0 11.47 14.0015">
+              <path
+                :d="svgPaths.p17d743e8"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+              <path
+                :d="svgPaths.p2a89eb80"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+              <path
+                :d="svgPaths.p54eb100"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+              <path
+                d="M1.91167 11.7799H9.55753"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+              <path
+                :d="svgPaths.p57a9b00"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+              <path
+                :d="svgPaths.p17482af0"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="0.955833"
+              />
+            </svg>
+            <span class="text-[12px] leading-4 font-medium text-[#ffd466]">Новый рекорд</span>
+          </div>
+        </div>
+
+        <div class="mb-4 rounded-2xl bg-[#b4d3ff] p-4 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] leading-[16.5px] tracking-[1px] uppercase text-[#15252b]">Очки</span>
+            <span class="text-[30px] leading-9 font-medium text-[#15252b]">{{ score.current }}</span>
+          </div>
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] leading-[16.5px] tracking-[1px] uppercase text-[#15252b]">Пожертвование</span>
+            <span class="text-[36px] leading-10 font-medium text-[#ff2c00]">{{ donation }} ₽</span>
+          </div>
+          <p class="text-[12px] leading-[14px] text-[#15252b]">В конце Рамадана эта сумма будет направлена на благотворительность</p>
+        </div>
+
+        <div class="mb-4 rounded-2xl bg-[rgba(255,255,255,0.5)] p-4 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]">
+          <div class="flex items-start gap-3">
+            <svg class="mt-[2px] h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 17.7 17.9968">
+              <path
+                :d="svgPaths.p3f949880"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.475"
+              />
+              <path
+                d="M14.75 1.62342V4.57394"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.475"
+              />
+              <path
+                d="M16.2255 3.09842H13.275"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.475"
+              />
+              <path
+                :d="svgPaths.p2491c700"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.475"
+              />
+            </svg>
+            <div>
+              <p class="text-[14px] leading-5 font-medium text-[#15252b]">Каждый балл — вклад в копилку добра.</p>
+              <p class="text-[14px] leading-5 text-[#15252b]">Можно сыграть ещё раз и увеличить сумму пожертвования</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="earnedReward"
+          class="mb-4 rounded-2xl bg-white p-4 shadow-[2px_2px_12px_0px_rgba(0,0,0,0.05)]"
+        >
+          <div class="mb-3 flex items-start gap-3">
+            <svg class="mt-[2px] h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 18 18">
+              <path
+                :d="svgPaths.p34d63080"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+              />
+              <path
+                d="M3.75 15.75H14.25"
+                stroke="#FFD466"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+              />
+            </svg>
+            <div>
+              <p class="text-[14px] leading-5 font-medium text-[#15252b]">Ваша награда:</p>
+              <p class="text-[14px] leading-5 text-[#15252b]">
+                <span>Скидка на {{ earnedReward.discount }} ₽ </span>
+                <span class="whitespace-nowrap">при покупке от 25 000 ₽</span>
+              </p>
+              <p class="text-[12px] leading-4 text-[#15252b]/70">(не действует на технику Apple)</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="relative w-full rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#b4d3ff] p-3"
+            @click="copyCode"
+          >
+            <p class="text-center text-[10px] leading-5 tracking-[1px] uppercase text-[#15252b]">Промокод</p>
+            <div class="mt-1 flex items-center justify-center gap-2">
+              <span class="font-['Menlo:Bold',sans-serif] text-[20px] leading-7 tracking-[2px] text-[#15252b]">{{ earnedReward.code }}</span>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 16 16">
+                <path
+                  :d="svgPaths.p216f800"
+                  opacity="0.2"
+                  stroke="#15252B"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.33333"
+                />
+                <path
+                  :d="svgPaths.p13e4b3c0"
+                  opacity="0.2"
+                  stroke="#15252B"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.33333"
+                />
+              </svg>
+            </div>
+            <div
+              v-if="copied"
+              class="absolute inset-0 flex items-center justify-center rounded-xl bg-[#15252b]/90 text-sm font-semibold text-white"
+            >
+              СКОПИРОВАНО!
+            </div>
+          </button>
+        </div>
+
+        <div :class="['flex flex-col gap-3', gameOverCooldown ? 'pointer-events-none opacity-70' : '']">
+          <button
+            type="button"
+            data-name="button.w-full"
+            class="w-full rounded-[12px] px-6 py-3 text-[16px] leading-6 font-medium text-white"
+            :style="primaryButtonStyle"
+            :disabled="gameOverCooldown"
+            @click="emitRestart"
+          >
+            Сыграть ещё раз
+          </button>
+          <button
+            type="button"
+            data-name="button.w-full"
+            class="flex w-full items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-[#b4d3ff] px-6 py-3 text-[14px] leading-5 font-medium text-[#15252b]"
+            :disabled="gameOverCooldown"
+            @click="emitOpenLeaderboard"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 16 16">
+              <path
+                :d="svgPaths.p10a7d900"
+                stroke="#15252B"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.33333"
+              />
+              <path
+                d="M3.33333 14H12.6667"
+                stroke="#15252B"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.33333"
+              />
+            </svg>
+            Посмотреть рейтинг игроков
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else
+      class="absolute inset-0 z-40 flex flex-col items-center justify-start bg-black/70 backdrop-blur-sm p-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto"
+    >
+      <div class="my-auto w-full max-w-md text-center">
+        <h2 class="text-[36px] leading-10 font-medium text-[#ff2c00]">Ваша башня упала</h2>
+        <p class="mt-1 text-[16px] leading-6 text-white/60">Но можно попробовать ещё раз</p>
+
+        <div class="mt-3 flex items-center justify-center gap-3 text-center">
+          <span class="text-[18px] leading-7 text-white/60">Высота:</span>
+          <span class="text-[48px] leading-[48px] font-medium text-[#ff2c00]">{{ score.current }}</span>
+        </div>
+
+        <div :class="['mt-6 flex flex-col items-center gap-3', gameOverCooldown ? 'pointer-events-none opacity-70' : '']">
+          <button
+            type="button"
+            data-name="button.px-8"
+            class="inline-flex items-center gap-2 rounded-full px-8 py-3 text-[18px] leading-7 text-[#f2f5f6]"
+            :style="primaryButtonStyle"
+            :disabled="gameOverCooldown"
+            @click="emitRestart"
+          >
+            <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center" data-name="Frame">
+              <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                <path
+                  :d="svgPaths.pd0f9a00"
+                  stroke="#F2F5F6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.66667"
+                />
+                <path
+                  d="M17.5 2.5V6.66667H13.3333"
+                  stroke="#F2F5F6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.66667"
+                />
+              </svg>
+            </span>
+            Попробовать снова
+          </button>
+          <button
+            type="button"
+            data-name="button.px-6"
+            class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-[9px] text-[14px] leading-5 text-[#f2f5f6]"
+            :disabled="gameOverCooldown"
+            @click="emitOpenLeaderboard"
+          >
+            <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center" data-name="Frame">
+              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <path
+                  :d="svgPaths.p10a7d900"
+                  stroke="#F2F5F6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.33333"
+                />
+                <path
+                  d="M3.33333 14H12.6667"
+                  stroke="#F2F5F6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.33333"
+                />
+              </svg>
+            </span>
+            Посмотреть рейтинг игроков
+          </button>
+        </div>
+      </div>
+    </div>
+    </template>
+
+    <template v-else-if="gameState === GameState.PLAYING">
+    <div
+      data-overlay="hud"
+      class="game-page__hud absolute top-0 left-0 z-20 flex w-full items-start justify-between p-4 pointer-events-none"
+    >
+      <div class="flex flex-col">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Этаж
+        </span>
+        <span class="text-white text-[36px] leading-[40px] font-['PP_Right_Grotesk:Medium',sans-serif]">
+          {{ score.current }}
+        </span>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Рекорд
+        </span>
+        <span class="text-[#ffd466] text-[24px] leading-[32px] font-['PP_Right_Grotesk:Bold',sans-serif]">
+          {{ score.best }}
+        </span>
+      </div>
+    </div>
+
+    <div
+      data-overlay="progress"
+      class="game-page__progress absolute top-20 left-1/2 -translate-x-1/2 z-20 w-[min(92vw,560px)] pointer-events-none bg-[#15252B]"
+      :style="{ backgroundColor: '#15252B' }"
+    >
+      <div
+        v-if="nextReward"
+        data-name="div.rounded-2xl"
+        class="backdrop-blur-[4px] bg-[#15252B] relative rounded-[16px] shrink-0 w-full"
+      >
+        <div
+          aria-hidden="true"
+          class="absolute border border-[rgba(255,255,255,0.1)] border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_10px_30px_0px_rgba(0,0,0,0.35)]"
+        />
+        <div class="content-stretch flex flex-col gap-[8px] items-start pb-[13px] pt-[12px] px-[17px] relative w-full">
+          <div class="relative w-full" data-name="div.flex">
+            <div class="content-stretch flex items-center justify-between relative w-full">
+              <div class="content-stretch flex flex-col items-start relative" data-name="span">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Regular',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[11px] text-[rgba(255,255,255,0.6)] uppercase whitespace-nowrap">
+                  <p class="leading-[16.5px]">До награды</p>
+                </div>
+              </div>
+              <div class="content-stretch flex flex-col items-start relative" data-name="span">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Regular',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[11px] text-[rgba(255,255,255,0.6)] uppercase whitespace-nowrap">
+                  <p class="leading-[16.5px]">{{ remainingToReward }} этажей</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative w-full" data-name="div.mt-2">
+            <div class="content-stretch flex items-center justify-between relative w-full">
+              <div class="content-stretch flex flex-col items-start relative" data-name="span.font-semibold">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Medium',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[14px] text-white whitespace-nowrap">
+                  <p>
+                    <span class="leading-[20px]">Скидка </span>
+                    <span class="leading-[20px] text-[#ffd466]">{{ nextReward.discount }} ₽</span>
+                  </p>
+                </div>
+              </div>
+              <div class="content-stretch flex flex-col items-start relative" data-name="span">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Medium',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[14px] text-[rgba(255,255,255,0.7)] whitespace-nowrap">
+                  <p class="leading-[20px]">{{ score.current }}/{{ nextReward.score }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative w-full mt-1" data-name="div.mt-3">
+            <div class="grid grid-cols-3 gap-1 relative w-full">
+              <div
+                v-for="(reward, index) in PROMO_REWARDS"
+                :key="reward.score"
+                class="bg-[rgba(255,255,255,0.1)] h-[8px] overflow-clip relative rounded-[9999px] w-full"
+                data-name="div.relative"
+              >
+                <div
+                  data-name="div.h-full"
+                  class="h-full rounded-[9999px]"
+                  :class="{ 'bg-[#f2f5f6]': score.current < reward.score }"
+                  :style="{ width: `${Math.round(segmentProgress(index) * 100)}%` }"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="relative w-full" data-name="div.mt-2">
+            <div class="content-stretch flex items-center justify-between relative w-full">
+              <div class="content-stretch flex flex-col items-start relative" data-name="span">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Regular',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[10px] text-[rgba(255,255,255,0.5)] whitespace-nowrap">
+                  <p class="leading-[15px]">Прогресс</p>
+                </div>
+              </div>
+              <div class="content-stretch flex flex-col items-start relative" data-name="span">
+                <div class="flex flex-col font-['PP_Right_Grotesk:Regular',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[10px] text-[rgba(255,255,255,0.5)] whitespace-nowrap">
+                  <p class="leading-[15px]">{{ Math.round(overallProgress * 100) }}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else
+        data-name="div.rounded-full"
+        class="backdrop-blur-[4px] bg-[#ffd466] content-stretch flex flex-col items-center px-[17px] py-[9px] relative rounded-[9999px] shrink-0 w-full"
+      >
+        <div
+          aria-hidden="true"
+          class="absolute border border-[#ffd466] border-solid inset-0 pointer-events-none rounded-[9999px]"
+        />
+        <div class="flex flex-col font-['PP_Right_Grotesk:Regular',sans-serif] justify-center leading-[0] not-italic relative shrink-0 text-[#15252b] text-[12px] text-center whitespace-nowrap">
+          <p class="leading-[16px]">Все награды получены. Продолжайте играть!</p>
+        </div>
+      </div>
+    </div>
+    </template>
+
+    <div
+      v-else
+      data-overlay="hud"
+      class="game-page__hud absolute top-0 left-0 z-20 flex w-full items-start justify-between p-4 pointer-events-none"
+    >
+      <div class="flex flex-col">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Этаж
+        </span>
+        <span class="text-white text-[36px] leading-[40px] font-['PP_Right_Grotesk:Medium',sans-serif]">
+          {{ score.current }}
+        </span>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="text-[12px] font-['PP_Right_Grotesk:Bold',sans-serif] uppercase text-[rgba(255,255,255,0.6)] leading-[16px]">
+          Рекорд
+        </span>
+        <span class="text-[#ffd466] text-[24px] leading-[32px] font-['PP_Right_Grotesk:Bold',sans-serif]">
+          {{ score.best }}
+        </span>
+      </div>
+    </div>
+  </div>
+  </div>
+</template>
 
 <style lang="postcss" scoped>
 *, ::before, ::after {
@@ -3199,6 +3766,114 @@ body {
 .designv2 {
   font-family: 'PP Right Grotesk', system-ui, -apple-system, sans-serif;
 }
+.game-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #15252b;
+  user-select: none;
+  font-family: 'PP Right Grotesk', system-ui, -apple-system, sans-serif;
+
+  &__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+
+  &__layers {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+  }
+
+  &__overlay--screen {
+    z-index: 50;
+  }
+
+  &__overlay--modal {
+    z-index: 60;
+  }
+
+  &__panel {
+    width: 100%;
+    max-width: 448px;
+    border-radius: 16px;
+    background: #f2f5f6;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  &__btn {
+    width: 100%;
+    border-radius: 12px;
+
+    &--primary {
+      padding: 16px 24px;
+      color: #ffffff;
+    }
+
+    &--secondary {
+      padding: 13px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #b4d3ff;
+      box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.05);
+      color: #15252b;
+    }
+
+    &--ghost {
+      background: transparent;
+      color: #15252b;
+      text-align: center;
+    }
+  }
+
+  &__hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 20;
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    padding: 16px;
+    pointer-events: none;
+  }
+
+  &__progress {
+    position: absolute;
+    top: 5rem;
+    left: 50%;
+    width: min(92vw, 560px);
+    transform: translateX(-50%);
+    z-index: 20;
+    pointer-events: none;
+    background: #15252b;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-page {
+    &__overlay--screen {
+      padding-top: max(1rem, env(safe-area-inset-top));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    &__hud {
+      top: calc(env(safe-area-inset-top) + 10px);
+    }
+
+    &__progress {
+      top: calc(env(safe-area-inset-top) + 90px);
+    }
+  }
+}
+
 .designv2 [data-name="button.w-full"]:not([class*="bg-[#b4d3ff]"]),
 .designv2 [data-name="button.px-8"] {
   background-color: #FF5C00 !important;
