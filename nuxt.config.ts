@@ -1,8 +1,7 @@
 import { NuxtConfig } from '@nuxt/types';
 
 const config: NuxtConfig = {
-  ssr: false,
-  target: 'static',
+  ssr: true,
   head: {
     title: '05.ru Tech Tower',
     meta: [
@@ -16,7 +15,7 @@ const config: NuxtConfig = {
     ],
   },
   css: [
-    '~/assets/styles/tailwind.pcss',
+    '~/assets/styles/utilities.pcss',
     '~/assets/styles/designv2-fonts.pcss',
     '~/assets/styles/designv2-overrides.pcss',
   ],

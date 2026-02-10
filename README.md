@@ -4,7 +4,7 @@
 - Nuxt 2 (SPA)
 - Vue 2 + Composition API (`setup`)
 - TypeScript
-- Чистый CSS на PostCSS (`.pcss`) без Tailwind-зависимости
+- Чистый CSS на PostCSS (`.pcss`) без CSS-фреймворков
 - Canvas game engine (`utils/gameEngine.ts`)
 - Supabase leaderboard (`@supabase/supabase-js`)
 
